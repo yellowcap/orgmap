@@ -958,3 +958,89 @@ select {
     inset: 8mm 8mm 30mm;
   }
 }
+
+/* ---- live session ------------------------------------------------------ */
+
+.live summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.live summary.on {
+  border-color: var(--ink);
+}
+
+.pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid var(--ink);
+}
+
+.pulse.ok {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.live-body {
+  min-width: 340px;
+  gap: 8px;
+}
+
+.live-body .assign {
+  margin-bottom: 4px;
+}
+
+.small {
+  font-size: 11px;
+  margin: 0;
+}
+
+.peers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 12px;
+}
+
+.peers li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.peer-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.peer-tag {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.network {
+  border-top: 1px solid var(--hair);
+  margin-top: 8px;
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.network summary {
+  cursor: pointer;
+  color: var(--grey);
+}

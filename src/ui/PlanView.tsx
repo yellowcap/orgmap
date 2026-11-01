@@ -6,6 +6,7 @@ import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
 import { hierarchy, pack, type HierarchyCircularNode } from "d3-hierarchy";
 import type { TreeID } from "loro-crdt";
 import type { OrgNode, OrgView } from "../model/org";
+import type { PeerMarks } from "./Editor";
 
 const SIZE = 1000;
 
@@ -25,6 +26,8 @@ const PLAN_CSS = `
 .plan .clabel { text-transform: uppercase; font-weight: 400; letter-spacing: 0.18em; }
 .plan .rlabel { font-weight: 400; }
 .plan .meta { fill: #888; font-weight: 300; }
+.plan .peer { fill: none; stroke-width: 1.5; stroke-dasharray: 1 3; stroke-linecap: round; vector-effect: non-scaling-stroke; pointer-events: none; }
+.plan .peer-name { font-weight: 500; }
 .plan .kind { fill: #888; font-style: italic; font-weight: 300; }
 `;
 
@@ -35,12 +38,13 @@ interface Props {
   selectedId: TreeID | null;
   focusId: TreeID | null;
   highlightPersonId: string | null;
+  peerMarks?: PeerMarks;
   onSelect: (id: TreeID | null) => void;
   onFocus: (id: TreeID | null) => void;
 }
 
 export const PlanView = forwardRef<SVGSVGElement, Props>(function PlanView(
-  { view, selectedId, focusId, highlightPersonId, onSelect, onFocus },
+  { view, selectedId, focusId, highlightPersonId, peerMarks, onSelect, onFocus },
   ref,
 ) {
   const layout = useMemo(() => {
@@ -146,6 +150,25 @@ export const PlanView = forwardRef<SVGSVGElement, Props>(function PlanView(
             </circle>
           );
         })}
+
+        {peerMarks &&
+          nodes.flatMap((d) =>
+            (peerMarks.get(d.data.id) ?? []).map((p, i) => (
+              <g key={`p-${d.data.id}-${i}`}>
+                <circle className="peer" cx={d.x} cy={d.y} r={d.r + (4 + i * 4) / k} stroke={p.colour} />
+                <text
+                  className="peer-name"
+                  x={d.x}
+                  y={d.y + d.r + (16 + i * 11) / k}
+                  fontSize={9 / k}
+                  textAnchor="middle"
+                  style={{ fill: p.colour }}
+                >
+                  {p.name}
+                </text>
+              </g>
+            )),
+          )}
 
         {nodes.map((d) => {
           const n = d.data;

@@ -29,3 +29,38 @@ export async function importFile(file: File, author: string): Promise<{ org: Org
   await persist(existing);
   return { org: existing, merged: true };
 }
+
+/**
+ * Saves after every change without waiting: one write at a time, and a
+ * follow-up write if changes arrived meanwhile. Also saves when the page is
+ * hidden, so closing or reloading the tab does not lose the last edit.
+ */
+export function autosave(org: OrgDoc): () => void {
+  let saving = false;
+  let dirty = false;
+  const save = async () => {
+    if (!org.ready) return;
+    if (saving) {
+      dirty = true;
+      return;
+    }
+    saving = true;
+    try {
+      do {
+        dirty = false;
+        await persist(org);
+      } while (dirty);
+    } finally {
+      saving = false;
+    }
+  };
+  const onHide = () => document.visibilityState === "hidden" && void save();
+  const stop = org.subscribe(() => void save());
+  document.addEventListener("visibilitychange", onHide);
+  window.addEventListener("pagehide", onHide);
+  return () => {
+    stop();
+    document.removeEventListener("visibilitychange", onHide);
+    window.removeEventListener("pagehide", onHide);
+  };
+}

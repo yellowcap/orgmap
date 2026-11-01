@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import type { OrgDoc, OrgView } from "../model/org";
+import type { SyncSession } from "../sync/session";
 
 /** Re-renders whenever the document changes (local edits, undo, merges). */
 export function useOrgView(org: OrgDoc): OrgView {
@@ -30,13 +31,12 @@ export function useAuthor(): [string, (name: string) => void] {
   return [author, update];
 }
 
-/** Calls `fn` at most once per `ms` after the last change of `value`. */
-export function useDebouncedEffect(fn: () => void, deps: unknown[], ms: number) {
-  const fnRef = useRef(fn);
-  fnRef.current = fn;
-  useEffect(() => {
-    const t = setTimeout(() => fnRef.current(), ms);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
+const NO_SESSION = { status: "closed" as const, peers: [], error: "" };
+
+/** Live session state (peers, status); a closed state when not sharing. */
+export function useSessionState(session: SyncSession | null): SyncSession["state"] {
+  return useSyncExternalStore(
+    (cb) => session?.subscribe(cb) ?? (() => {}),
+    () => session?.state ?? NO_SESSION,
+  );
 }

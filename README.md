@@ -2,13 +2,13 @@
 
 Map how a team organises itself — circles, roles, accountabilities, domains and
 who fills which role — in a browser, with nothing leaving the device unless you
-export it.
+export it or start a live session.
 
 Built for teams exploring self-organisation (Holacracy-style, Sociocracy,
 Sociocracy 3.0 or plain language), typically with a coach. See [PLAN.md](PLAN.md)
 for goals, roadmap and architecture.
 
-## Features (M1)
+## Features
 
 - Circles and roles with purpose, accountabilities, domains and policies
 - Vocabulary presets with their core roles (e.g. Circle Lead, Leader/Delegate)
@@ -25,6 +25,10 @@ for goals, roadmap and architecture.
     to start a new organisation
   - CSV — one row per circle or role, for spreadsheets and imports
   - SVG and print/PDF of the plan
+- Live sessions: share a link, edit together in real time, see who is here
+  and what they have selected. Changes travel directly between browsers
+  (WebRTC); public relays only help browsers find each other. Edits made
+  offline merge when people reconnect.
 
 ## Development
 
@@ -51,7 +55,8 @@ Bundled third-party work:
   and [Roboto Mono](https://github.com/googlefonts/robotomono), SIL Open Font
   License 1.1; the licence texts ship with the site in `public/licenses/`.
 - [Loro](https://github.com/loro-dev/loro) (MIT), [d3-hierarchy](https://github.com/d3/d3-hierarchy)
-  (ISC), [React](https://github.com/facebook/react) (MIT).
+  (ISC), [React](https://github.com/facebook/react) (MIT),
+  [Trystero](https://github.com/dmotz/trystero) (MIT).
 
 "Holacracy" is a registered trademark of HolacracyOne, LLC. orgmap is not
 affiliated with or endorsed by HolacracyOne; the "Holacracy-style" preset only
@@ -66,6 +71,10 @@ src/model/   data layer, no UI
   export.ts    JSON/CSV export, JSON import
   storage.ts   IndexedDB persistence
   templates.ts example organisation
+src/sync/    live sessions
+  session.ts   sync protocol over any transport (hello, updates, presence)
+  trystero.ts  transport: WebRTC via Trystero, Nostr signalling
+  link.ts      share links, room keys, network settings
 src/ui/      React components
   PlanView.tsx circle-packing plan
   Editor.tsx   main screen

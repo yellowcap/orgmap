@@ -36,9 +36,9 @@ result over as a file.
 | Milestone | Scope | Status |
 |---|---|---|
 | **M1 Modelling** | Circles and roles; purpose, accountabilities, domains, policies; people and assignments with focus; presets; circle-packing plan view and outline; change log with undo/redo, preview and restore; local persistence; `.orgmap`/JSON/CSV/SVG export, print; import and merge of files | **First version done** |
-| **M2 Peer-to-peer** | Live sync of the same document between browsers. Room link with the key in the URL fragment; end-to-end encrypted updates; Trystero (WebRTC over public signalling) first, optional tiny relay as fallback for corporate networks; presence (who is here, what they have selected) | Next |
+| **M2 Peer-to-peer** | Live sync of the same document between browsers. Share link with the key in the URL fragment; encrypted direct connections (WebRTC via Trystero, public Nostr relays for signalling); presence (who is here, what they have selected); optional TURN settings for strict networks | **First version done** |
 | **M3 Workshop flow** | Guided steps for a coach-led session (e.g. tension harvest → activity cards → clustering → roles → consent check). **Designed with coaches first**; not started on purpose | After coach input |
-| Later | Hand-off adapters for specific tools (GlassFrog, Peerdom, Nestr), templates per paradigm, translations (DE/FR), PWA install | Open |
+| Later | Fallback relay for networks that block WebRTC, hand-off adapters for specific tools (GlassFrog, Peerdom, Nestr), templates per paradigm, translations (DE/FR), PWA install | Open |
 
 ## Architecture (M1)
 
@@ -61,6 +61,31 @@ result over as a file.
   `.orgmap` of an organisation that is already in the browser merges the two,
   so copies edited separately combine without conflicts.
 
+## Architecture (M2, live sync)
+
+- **Transport:** [Trystero](https://github.com/dmotz/trystero) with its Nostr
+  strategy. Public Nostr relays are only used to find peers (signalling, encrypted
+  with the room key); document data then flows browser to browser over WebRTC
+  data channels (DTLS). Nothing is stored on a server.
+- **Share link:** `#/join/<orgId>/<key>`. The key is a random 128-bit value in
+  the URL fragment, so it never reaches the web server. The room id is derived
+  from the key (SHA-256), the key is also Trystero's password. On opening, the
+  app stores the key and replaces the address with `#/org/<orgId>`.
+- **Keys stay out of the document.** The room key and the "live" flag are kept
+  per organisation in `localStorage`, not in the Loro document, so passing an
+  `.orgmap` file around never grants access to a live session. "New link"
+  rotates the key; old links stop connecting, people keep what they have.
+- **Protocol** (`src/sync/session.ts`, transport-agnostic, unit-tested with an
+  in-memory hub): on connect both sides send `hello` (org id + Loro version
+  vector) and answer with the updates the other is missing; afterwards every
+  local commit is broadcast as a Loro update. Peers with a different org id are
+  ignored. Loro merges in any order, so reconnects after offline edits converge.
+  `presence` carries name and selection for the markers on the plan.
+- **Joining:** a browser without the organisation starts from a blank document
+  and shows a waiting screen until the first sync arrives, then saves it.
+- **Saving:** every change, local or remote, is written to IndexedDB at once
+  (coalesced), and again when the page is hidden.
+
 ### Rules that keep peer-to-peer possible
 
 - All shared state lives in the Loro document; React state only holds per-viewer
@@ -75,6 +100,13 @@ result over as a file.
   It is self-declared; signing edits is a later concern.
 
 ### Known limits
+
+- Live sync only works while at least one person who has the organisation is
+  online. Networks that block WebRTC need a TURN server (Share → Network
+  settings) or files instead. Public Nostr relays come and go; Trystero uses
+  several, so single failures are harmless.
+- Anyone with the link can edit, and author names are self-declared. Fine for a
+  workshop room; not an access-control system.
 
 - Text fields are last-writer-wins strings. Two people editing the same purpose
   at the same moment keep only one version (the log shows both). Switch to
@@ -101,7 +133,8 @@ Quiet, editorial, in the manner of architectural plan drawings:
 
 - Which hand-off formats matter most to coaches and teams (GlassFrog CSV?
   Peerdom import?) — needs confirmation with real exports.
-- Should the M2 fallback relay be hosted (Cloudflare Durable Object) or
-  self-hostable only?
+- Is a fallback relay needed for corporate networks (TURN settings exist; a
+  hosted relay, e.g. a Cloudflare Durable Object, would also store nothing but
+  forward updates), and should it be hosted or self-hostable only?
 - Workshop flow (M3): which steps, in which order, per paradigm — to be worked
   out with coaches.

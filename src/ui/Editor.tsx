@@ -4,8 +4,8 @@ import type { HistoryEntry, OrgDoc, OrgView } from "../model/org";
 import { PRESETS, PRESET_IDS, type PresetId } from "../model/presets";
 import { fileBaseName, toCSV, toJSON } from "../model/export";
 import { download, pickFile } from "./files";
-import { useDebouncedEffect, useOrgView } from "./hooks";
-import { importFile, persist } from "./io";
+import { useOrgView } from "./hooks";
+import { autosave, importFile } from "./io";
 import { TextField } from "./fields";
 import { PlanView } from "./PlanView";
 import { Outline } from "./Outline";
@@ -13,6 +13,12 @@ import { Inspector } from "./Inspector";
 import { PeoplePanel } from "./PeoplePanel";
 import { HistoryPanel } from "./HistoryPanel";
 import { TitleBlock } from "./TitleBlock";
+import { LivePanel } from "./LivePanel";
+import { useSessionState } from "./hooks";
+import type { SyncSession } from "../sync/session";
+
+/** Who else has a node selected, for markers on the plan and in the outline. */
+export type PeerMarks = Map<TreeID, { name: string; colour: string }[]>;
 
 type Tab = "details" | "people" | "log";
 
@@ -21,10 +27,16 @@ interface Props {
   author: string;
   onAuthorChange: (name: string) => void;
   onClose: () => void;
+  session: SyncSession | null;
+  isLive: boolean;
+  onGoLive: () => void;
+  onStopLive: () => void;
+  onNewLink: () => void;
 }
 
-export function Editor({ org, author, onAuthorChange, onClose }: Props) {
+export function Editor({ org, author, onAuthorChange, onClose, session, isLive, onGoLive, onStopLive, onNewLink }: Props) {
   const live = useOrgView(org);
+  const sessionState = useSessionState(session);
   const [selectedId, setSelectedId] = useState<TreeID | null>(null);
   const [focusId, setFocusId] = useState<TreeID | null>(null);
   const [tab, setTab] = useState<Tab>("details");
@@ -38,14 +50,25 @@ export function Editor({ org, author, onAuthorChange, onClose }: Props) {
   const view: OrgView = previewView ?? live;
   const readOnly = !!preview;
 
-  // Save locally shortly after each change.
-  useDebouncedEffect(() => void persist(org), [live], 400);
+  // Save locally after each change (also covers changes from peers).
+  useEffect(() => autosave(org), [org]);
 
   // Drop selection/focus that no longer exists (removed, undone, restored).
   useEffect(() => {
     if (selectedId && !view.nodes.has(selectedId)) setSelectedId(null);
     if (focusId && !view.nodes.has(focusId)) setFocusId(null);
   }, [view, selectedId, focusId]);
+
+  useEffect(() => session?.setSelection(selectedId), [session, selectedId]);
+
+  const peerMarks: PeerMarks = useMemo(() => {
+    const m: PeerMarks = new Map();
+    for (const p of sessionState.peers) {
+      if (!p.selectedId) continue;
+      m.set(p.selectedId, [...(m.get(p.selectedId) ?? []), { name: p.name || "…", colour: p.colour }]);
+    }
+    return m;
+  }, [sessionState.peers]);
 
   // Keyboard undo/redo, unless typing in a field.
   useEffect(() => {
@@ -152,6 +175,16 @@ export function Editor({ org, author, onAuthorChange, onClose }: Props) {
             </div>
           </details>
           <span className="sep" />
+          <LivePanel
+            orgId={org.id}
+            author={author}
+            session={session}
+            isLive={isLive}
+            onGoLive={onGoLive}
+            onStopLive={onStopLive}
+            onNewLink={onNewLink}
+          />
+          <span className="sep" />
           <label className="inline author">
             <span className="label">You</span>
             <TextField value={author} placeholder="Your name" onCommit={onAuthorChange} aria-label="Your name" />
@@ -186,6 +219,7 @@ export function Editor({ org, author, onAuthorChange, onClose }: Props) {
             org={org}
             readOnly={readOnly}
             selectedId={selectedId}
+            peerMarks={peerMarks}
             onSelect={(id) => {
               select(id);
               const n = view.nodes.get(id);
@@ -202,6 +236,7 @@ export function Editor({ org, author, onAuthorChange, onClose }: Props) {
             selectedId={selectedId}
             focusId={focusId}
             highlightPersonId={highlightPersonId}
+            peerMarks={peerMarks}
             onSelect={select}
             onFocus={setFocusId}
           />

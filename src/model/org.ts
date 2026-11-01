@@ -5,7 +5,7 @@
 // the change log: it powers undo/redo, version preview and restore, and later
 // attributes edits once documents sync peer-to-peer.
 
-import { LoroDoc, LoroList, LoroMap, UndoManager, type Change, type Frontiers, type TreeID } from "loro-crdt";
+import { LoroDoc, LoroList, LoroMap, UndoManager, VersionVector, type Change, type Frontiers, type TreeID } from "loro-crdt";
 import { PRESETS, type Preset, type PresetId, type RoleKind } from "./presets";
 
 export const SCHEMA_VERSION = 1;
@@ -148,10 +148,20 @@ export class OrgDoc {
     return org;
   }
 
+  /** An empty document that is filled by syncing with peers (see src/sync). */
+  static blank(author: string): OrgDoc {
+    return new OrgDoc(new LoroDoc(), author);
+  }
+
   // ---- reading -------------------------------------------------------------
 
+  /** The organisation's id; empty while a blank document waits for its first sync. */
   get id(): string {
-    return this.doc.getMap(META).get("id") as string;
+    return (this.doc.getMap(META).get("id") as string | undefined) ?? "";
+  }
+
+  get ready(): boolean {
+    return this.id !== "" && this.doc.getTree(STRUCTURE).roots().length > 0;
   }
 
   view(): OrgView {
@@ -419,6 +429,29 @@ export class OrgDoc {
     other.import(bytes);
     if (other.getMap(META).get("id") !== this.id) throw new Error("That file belongs to a different organisation");
     this.doc.import(bytes);
+    this.changed();
+  }
+
+  // ---- sync ----------------------------------------------------------------
+
+  /** Compact description of what this copy contains, to send to a peer. */
+  versionBytes(): Uint8Array {
+    return this.doc.oplogVersion().encode();
+  }
+
+  /** Everything this copy has that a peer with `version` is missing. */
+  updatesSince(version: Uint8Array): Uint8Array {
+    return this.doc.export({ mode: "update", from: VersionVector.decode(version) });
+  }
+
+  /** Called with the encoded update of every local change (edits, undo, restore). */
+  onLocalUpdate(listener: (update: Uint8Array) => void): () => void {
+    return this.doc.subscribeLocalUpdates(listener);
+  }
+
+  /** Applies an update received from a peer. */
+  applyRemote(update: Uint8Array) {
+    this.doc.import(update);
     this.changed();
   }
 

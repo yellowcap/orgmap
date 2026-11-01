@@ -3,16 +3,18 @@
 import { useState } from "react";
 import type { TreeID } from "loro-crdt";
 import type { OrgDoc, OrgNode, OrgView } from "../model/org";
+import type { PeerMarks } from "./Editor";
 
 interface Props {
   org: OrgDoc;
   view: OrgView;
   readOnly: boolean;
   selectedId: TreeID | null;
+  peerMarks: PeerMarks;
   onSelect: (id: TreeID) => void;
 }
 
-export function Outline({ org, view, readOnly, selectedId, onSelect }: Props) {
+export function Outline({ org, view, readOnly, selectedId, peerMarks, onSelect }: Props) {
   const [collapsed, setCollapsed] = useState<Set<TreeID>>(new Set());
   const [dragId, setDragId] = useState<TreeID | null>(null);
   const [dropId, setDropId] = useState<TreeID | null>(null);
@@ -94,6 +96,11 @@ export function Outline({ org, view, readOnly, selectedId, onSelect }: Props) {
           )}
           <span className={`glyph ${isCircle ? "g-circle" : special ? "g-special" : "g-role"}`} aria-hidden="true" />
           <span className={`name ${isCircle ? "upper" : ""}`}>{n.name || "Untitled"}</span>
+          {peerMarks.get(n.id)?.map((p, i) => (
+            <span key={i} className="peer-tag" style={{ background: p.colour }} title={`${p.name} is here`}>
+              {p.name.slice(0, 1).toUpperCase()}
+            </span>
+          ))}
           {n.fillers.length > 0 && <span className="count">{n.fillers.length}</span>}
         </div>
         {isCircle && open && n.children.length > 0 && <ul>{n.children.map((c) => row(c, depth + 1))}</ul>}
