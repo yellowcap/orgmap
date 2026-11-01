@@ -45,6 +45,18 @@ static host. Pushes to `main` deploy to GitHub Pages via
 
 MIT, see [LICENSE](LICENSE).
 
+Bundled third-party work:
+
+- Fonts [Josefin Sans](https://github.com/ThomasJockin/JosefinSansFont-master)
+  and [Roboto Mono](https://github.com/googlefonts/robotomono), SIL Open Font
+  License 1.1; the licence texts ship with the site in `public/licenses/`.
+- [Loro](https://github.com/loro-dev/loro) (MIT), [d3-hierarchy](https://github.com/d3/d3-hierarchy)
+  (ISC), [React](https://github.com/facebook/react) (MIT).
+
+"Holacracy" is a registered trademark of HolacracyOne, LLC. orgmap is not
+affiliated with or endorsed by HolacracyOne; the "Holacracy-style" preset only
+describes compatible vocabulary.
+
 ## Layout
 
 ```
