@@ -31,7 +31,7 @@ export function useAuthor(): [string, (name: string) => void] {
   return [author, update];
 }
 
-const NO_SESSION = { status: "closed" as const, peers: [], error: "" };
+const NO_SESSION = { status: "closed" as const, peers: [], error: null };
 
 /** Live session state (peers, status); a closed state when not sharing. */
 export function useSessionState(session: SyncSession | null): SyncSession["state"] {

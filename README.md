@@ -26,6 +26,9 @@ for goals, roadmap and architecture.
     to start a new organisation
   - CSV — one row per circle or role, for spreadsheets and imports
   - SVG and print/PDF of the plan
+- English, German, French and Italian, picked from the browser's language
+  (English otherwise) and switchable in the app; the change log shows each
+  person's own language
 - Live sessions: share a link, edit together in real time, see who is here
   and what they have selected. Changes travel directly between browsers
   (WebRTC); public relays only help browsers find each other. Edits made
@@ -68,6 +71,7 @@ src/model/   data layer, no UI
   export.ts    JSON/CSV export, JSON import
   storage.ts   IndexedDB persistence
   templates.ts example organisation
+src/i18n/    translations (en, de, fr, it), language detection
 src/sync/    live sessions
   session.ts   sync protocol over any transport (hello, updates, presence)
   trystero.ts  transport: WebRTC via Trystero, Nostr signalling

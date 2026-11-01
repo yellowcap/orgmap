@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { t } from "../i18n";
 
 interface TextFieldProps {
   value: string;
@@ -89,10 +90,10 @@ export function ListEditor({ label, items, placeholder, onAdd, onUpdate, onRemov
               onCommit={(t) => (t ? onUpdate(i, t) : onRemove(i))}
             />
             <span className="item-actions">
-              <button className="ghost icon" disabled={i === 0} onClick={() => onMove(i, i - 1)} title="Move up">
+              <button className="ghost icon" disabled={i === 0} onClick={() => onMove(i, i - 1)} title={t("list.moveUp")}>
                 ↑
               </button>
-              <button className="ghost icon" onClick={() => onRemove(i)} title="Remove">
+              <button className="ghost icon" onClick={() => onRemove(i)} title={t("common.remove")}>
                 ×
               </button>
             </span>

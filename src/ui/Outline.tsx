@@ -4,7 +4,8 @@ import { useState } from "react";
 import type { TreeID } from "loro-crdt";
 import type { OrgDoc, OrgNode, OrgView } from "../model/org";
 import type { PeerMarks } from "./Editor";
-import { VOCAB } from "../model/vocabulary";
+import { t } from "../i18n";
+import { errorMessage } from "../i18n/model";
 
 interface Props {
   org: OrgDoc;
@@ -20,7 +21,6 @@ export function Outline({ org, view, readOnly, selectedId, peerMarks, onSelect }
   const [dragId, setDragId] = useState<TreeID | null>(null);
   const [dropId, setDropId] = useState<TreeID | null>(null);
   const [error, setError] = useState("");
-  const vocab = VOCAB;
 
   if (!view.root) return null;
 
@@ -29,7 +29,7 @@ export function Outline({ org, view, readOnly, selectedId, peerMarks, onSelect }
   const target = sel ? (sel.type === "circle" ? sel : view.nodes.get(sel.parentId!)!) : view.root;
 
   const add = (type: "circle" | "role") => {
-    const name = type === "circle" ? `New ${vocab.circle.toLowerCase()}` : `New ${vocab.role.toLowerCase()}`;
+    const name = t(type === "circle" ? "vocab.newCircle" : "vocab.newRole");
     onSelect(org.addNode(target.id, type, name));
   };
 
@@ -40,7 +40,7 @@ export function Outline({ org, view, readOnly, selectedId, peerMarks, onSelect }
       org.move(dragId, onto.id);
       setError("");
     } catch (e) {
-      setError((e as Error).message);
+      setError(errorMessage(e));
     }
   };
 
@@ -88,7 +88,7 @@ export function Outline({ org, view, readOnly, selectedId, peerMarks, onSelect }
                 e.stopPropagation();
                 toggle(n.id);
               }}
-              aria-label={open ? "Collapse" : "Expand"}
+              aria-label={t(open ? "outline.collapse" : "outline.expand")}
             >
               {open ? "▾" : "▸"}
             </button>
@@ -96,9 +96,9 @@ export function Outline({ org, view, readOnly, selectedId, peerMarks, onSelect }
             <span className="caret" />
           )}
           <span className={`glyph ${isCircle ? "g-circle" : special ? "g-special" : "g-role"}`} aria-hidden="true" />
-          <span className={`name ${isCircle ? "upper" : ""}`}>{n.name || "Untitled"}</span>
+          <span className={`name ${isCircle ? "upper" : ""}`}>{n.name || t("common.untitled")}</span>
           {peerMarks.get(n.id)?.map((p, i) => (
-            <span key={i} className="peer-tag" style={{ background: p.colour }} title={`${p.name} is here`}>
+            <span key={i} className="peer-tag" style={{ background: p.colour }} title={t("peer.here", { name: p.name })}>
               {p.name.slice(0, 1).toUpperCase()}
             </span>
           ))}
@@ -112,14 +112,14 @@ export function Outline({ org, view, readOnly, selectedId, peerMarks, onSelect }
   return (
     <div className="outline">
       <div className="pane-head">
-        <span className="label">Structure</span>
+        <span className="label">{t("outline.title")}</span>
         {!readOnly && (
           <span className="row">
-            <button className="ghost" onClick={() => add("role")} title={`Add to ${target.name}`}>
-              + {vocab.role}
+            <button className="ghost" onClick={() => add("role")} title={t("outline.addTo", { name: target.name })}>
+              + {t("vocab.role")}
             </button>
-            <button className="ghost" onClick={() => add("circle")} title={`Add to ${target.name}`}>
-              + {vocab.circle}
+            <button className="ghost" onClick={() => add("circle")} title={t("outline.addTo", { name: target.name })}>
+              + {t("vocab.circle")}
             </button>
           </span>
         )}

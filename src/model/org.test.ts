@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { OrgDoc } from "./org";
 import { fromJSON, toCSV, toJSON } from "./export";
+import { setLang } from "../i18n";
+import { coreRoles, formatLog } from "../i18n/model";
+
+setLang("en", false);
 
 function sample() {
   const org = OrgDoc.create({ name: "Acme", author: "Ada" });
@@ -36,8 +40,8 @@ describe("OrgDoc structure", () => {
 
   it("adds the core roles once", () => {
     const { org, ops } = sample();
-    org.addCoreRoles(ops);
-    org.addCoreRoles(ops);
+    org.addCoreRoles(ops, coreRoles());
+    org.addCoreRoles(ops, coreRoles());
     const kinds = org.view().nodes.get(ops)!.children.map((c) => c.kind);
     expect(kinds).toEqual(["lead", "rep"]);
   });
@@ -69,21 +73,21 @@ describe("OrgDoc history", () => {
     const { org, finance } = sample();
     org.rename(finance, "Money");
     const h = org.history();
-    expect(h[0].message).toBe("Renamed “Finance” to “Money”");
+    expect(formatLog(h[0].message)).toBe("Renamed “Finance” to “Money”");
     expect(h[0].author).toBe("Ada");
-    expect(h.map((e) => e.message).at(-1)).toBe("Created organisation “Acme”");
+    expect(h.map((e) => formatLog(e.message)).at(-1)).toBe("Created organisation “Acme”");
   });
 
   it("undoes and redoes with labelled log entries", () => {
     const { org, finance } = sample();
     org.rename(finance, "Money");
-    expect(org.undoLabel).toBe("Renamed “Finance” to “Money”");
+    expect(formatLog(org.undoLabel)).toBe("Renamed “Finance” to “Money”");
     org.undo();
     expect(org.view().nodes.get(finance)?.name).toBe("Finance");
-    expect(org.history()[0].message).toBe("Undid: Renamed “Finance” to “Money”");
+    expect(formatLog(org.history()[0].message)).toBe("Undid: Renamed “Finance” to “Money”");
     org.redo();
     expect(org.view().nodes.get(finance)?.name).toBe("Money");
-    expect(org.history()[0].message).toBe("Redid: Renamed “Finance” to “Money”");
+    expect(formatLog(org.history()[0].message)).toBe("Redid: Renamed “Finance” to “Money”");
   });
 
   it("undoes a removal including nested roles and assignments", () => {
@@ -115,14 +119,14 @@ describe("OrgDoc history", () => {
     // Deleted nodes come back with their content under a new id (Loro tree semantics).
     const restored = v.root!.children.find((c) => c.name === "Operations");
     expect(restored?.children.map((c) => c.name)).toEqual(["Shipping"]);
-    expect(org.history()[0].message).toMatch(/^Restored version from/);
+    expect(formatLog(org.history()[0].message)).toMatch(/^Restored version from/);
     expect(org.history().length).toBeGreaterThan(5);
   });
 
   it("batches several mutations into one entry", () => {
     const { org, root } = sample();
     const n = org.history().length;
-    org.batch("Sketched marketing", () => {
+    org.batch({ key: "changeType", values: { name: "Marketing" } }, () => {
       const m = org.addNode(root, "circle", "Marketing");
       org.addNode(m, "role", "Social media");
     });
@@ -164,7 +168,7 @@ describe("files", () => {
     const { org, ops, finance } = sample();
     const bob = org.addPerson("Bob");
     org.assign(finance, bob, "Mondays");
-    org.addCoreRoles(ops);
+    org.addCoreRoles(ops, coreRoles());
     org.addListItem(finance, "accountabilities", "Paying invoices");
     const json = toJSON(org.view());
     const copy = fromJSON(JSON.parse(JSON.stringify(json)), "Cy");

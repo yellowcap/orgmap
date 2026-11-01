@@ -215,6 +215,19 @@ select {
   margin-bottom: 48px;
 }
 
+.library-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+select.lang {
+  width: auto;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
 .kicker {
   font: 300 12px var(--mono);
   text-transform: uppercase;
@@ -408,6 +421,8 @@ select {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
+  white-space: nowrap;
   padding: 12px 12px 8px;
   border-bottom: 1px solid var(--hair);
   position: sticky;
@@ -626,6 +641,11 @@ select {
 
 /* ---- side pane --------------------------------------------------------- */
 
+.pane-head .row {
+  flex-wrap: nowrap;
+  gap: 0;
+}
+
 .tabs {
   display: flex;
   border-bottom: 1px solid var(--ink);
@@ -639,10 +659,13 @@ select {
   flex: 1;
   border: 0;
   border-right: 1px solid var(--hair);
-  padding: 10px 6px;
+  padding: 10px 4px;
   font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tabs button:last-child {

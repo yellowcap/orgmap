@@ -2,7 +2,10 @@ import { useEffect, useState } from "react";
 import { OrgDoc } from "../model/org";
 import { fromJSON } from "../model/export";
 import { deleteOrg, listOrgs, type OrgSummary } from "../model/storage";
-import { EXAMPLE_ORG } from "../model/templates";
+import { exampleOrg } from "../model/templates";
+import { formatDateTime, getLang, t } from "../i18n";
+import { errorMessage } from "../i18n/model";
+import { LanguagePicker } from "./LanguagePicker";
 import { importFile, persist } from "./io";
 import { pickFile } from "./files";
 import { TextField } from "./fields";
@@ -23,7 +26,7 @@ export function Library({ author, onAuthorChange, onOpen }: Props) {
     refresh();
   }, []);
 
-  const who = author || "Anonymous";
+  const who = author || t("common.anonymous");
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +37,7 @@ export function Library({ author, onAuthorChange, onOpen }: Props) {
   };
 
   const example = async () => {
-    const org = fromJSON(EXAMPLE_ORG, who);
+    const org = fromJSON(exampleOrg(getLang()), who);
     await persist(org);
     onOpen(org);
   };
@@ -47,12 +50,12 @@ export function Library({ author, onAuthorChange, onOpen }: Props) {
       const { org } = await importFile(file, who);
       onOpen(org);
     } catch (err) {
-      setError(`Could not open ${file.name}: ${(err as Error).message}`);
+      setError(t("lib.openError", { file: file.name, error: errorMessage(err) }));
     }
   };
 
   const remove = async (o: OrgSummary) => {
-    if (!confirm(`Delete “${o.name}” from this browser? Exported files are not affected.`)) return;
+    if (!confirm(t("lib.deleteConfirm", { name: o.name }))) return;
     await deleteOrg(o.id);
     refresh();
   };
@@ -60,37 +63,38 @@ export function Library({ author, onAuthorChange, onOpen }: Props) {
   return (
     <div className="library">
       <header className="library-head">
-        <h1 className="wordmark">orgmap</h1>
-        <p className="kicker">Teams · Roles · Structure</p>
-        <p className="lede">
-          Map how your team organises itself. Everything stays in this browser; take it with you as a file.
-        </p>
+        <div className="library-top">
+          <h1 className="wordmark">orgmap</h1>
+          <LanguagePicker />
+        </div>
+        <p className="kicker">{t("lib.kicker")}</p>
+        <p className="lede">{t("lib.lede")}</p>
       </header>
 
       <section className="sheet">
-        <h2 className="label">01 — You</h2>
+        <h2 className="label">{t("lib.you")}</h2>
         <label className="field">
-          <span className="label">Your name, shown in the change log</span>
-          <TextField value={author} placeholder="e.g. Andrea" onCommit={onAuthorChange} />
+          <span className="label">{t("lib.yourName")}</span>
+          <TextField value={author} placeholder={t("lib.yourNamePlaceholder")} onCommit={onAuthorChange} />
         </label>
       </section>
 
       <section className="sheet">
-        <h2 className="label">02 — New organisation</h2>
+        <h2 className="label">{t("lib.new")}</h2>
         <form className="new-org" onSubmit={create}>
           <label className="field">
-            <span className="label">Name</span>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Team Alpha" />
+            <span className="label">{t("common.name")}</span>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("lib.orgNamePlaceholder")} />
           </label>
           <div className="row">
             <button type="submit" className="primary" disabled={!name.trim()}>
-              Create
+              {t("lib.create")}
             </button>
             <button type="button" onClick={example}>
-              Start from an example
+              {t("lib.example")}
             </button>
             <button type="button" onClick={importOne}>
-              Open a file…
+              {t("lib.open")}
             </button>
           </div>
           {error && <p className="error">{error}</p>}
@@ -98,9 +102,9 @@ export function Library({ author, onAuthorChange, onOpen }: Props) {
       </section>
 
       <section className="sheet">
-        <h2 className="label">03 — In this browser</h2>
+        <h2 className="label">{t("lib.stored")}</h2>
         {orgs.length === 0 ? (
-          <p className="muted">Nothing yet.</p>
+          <p className="muted">{t("lib.empty")}</p>
         ) : (
           <ul className="org-list">
             {orgs.map((o) => (
@@ -109,11 +113,11 @@ export function Library({ author, onAuthorChange, onOpen }: Props) {
                   className="link"
                   onClick={() => (location.hash = `#/org/${encodeURIComponent(o.id)}`)}
                 >
-                  {o.name || "Untitled"}
+                  {o.name || t("common.untitled")}
                 </button>
-                <span className="muted">{new Date(o.updatedAt).toLocaleString()}</span>
-                <button className="ghost" onClick={() => remove(o)} title="Delete from this browser">
-                  Delete
+                <span className="muted">{formatDateTime(o.updatedAt)}</span>
+                <button className="ghost" onClick={() => remove(o)} title={t("lib.deleteTitle")}>
+                  {t("lib.delete")}
                 </button>
               </li>
             ))}

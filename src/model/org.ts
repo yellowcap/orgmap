@@ -6,7 +6,7 @@
 // attributes edits once documents sync peer-to-peer.
 
 import { LoroDoc, LoroList, LoroMap, UndoManager, VersionVector, type Change, type Frontiers, type TreeID } from "loro-crdt";
-import { CORE_ROLES, VOCAB, type RoleKind } from "./vocabulary";
+import { isCoreKind, type CoreKind, type RoleKind } from "./vocabulary";
 
 export const SCHEMA_VERSION = 1;
 
@@ -45,6 +45,25 @@ export interface OrgView {
   people: Person[];
 }
 
+/**
+ * A change-log message as a key and values rather than a sentence, so every
+ * reader sees it in their own language (see src/i18n/log.ts).
+ */
+export interface LogMessage {
+  key: string;
+  values?: Record<string, LogValue>;
+}
+export type LogValue = string | number | LogMessage;
+
+const msg = (key: string, values?: Record<string, LogValue>): LogMessage => ({ key, values });
+
+/** An error the user can act on; `code` is translated by the UI. */
+export class OrgError extends Error {
+  constructor(readonly code: "notOrgmap" | "notOrgmapJson" | "roleHasChildren" | "moveIntoSelf" | "removeRoot" | "otherOrg") {
+    super(code);
+  }
+}
+
 export interface HistoryEntry {
   /** `${counter}@${peer}` of the change's last op; stable across peers. */
   key: string;
@@ -54,7 +73,7 @@ export interface HistoryEntry {
   /** Unix time in milliseconds. */
   time: number;
   author: string;
-  message: string;
+  message: LogMessage;
 }
 
 // Container names inside the Loro doc.
@@ -78,23 +97,21 @@ export function newId(): string {
 }
 
 /** Commit messages carry the author so attribution survives reverts and merges. */
-function encodeMessage(author: string, message: string): string {
-  return JSON.stringify({ a: author, m: message });
+function encodeMessage(author: string, message: LogMessage): string {
+  return JSON.stringify({ a: author, k: message.key, v: message.values });
 }
 
-export function decodeMessage(raw: string | undefined): { author: string; message: string } {
-  if (!raw) return { author: "", message: "" };
+export function decodeMessage(raw: string | undefined): { author: string; message: LogMessage } {
+  if (!raw) return { author: "", message: msg("unnamed") };
   try {
     const v = JSON.parse(raw);
-    if (v && typeof v.m === "string") return { author: String(v.a ?? ""), message: v.m };
+    if (v && typeof v.k === "string") return { author: String(v.a ?? ""), message: msg(v.k, v.v) };
+    // Earlier versions stored an English sentence.
+    if (v && typeof v.m === "string") return { author: String(v.a ?? ""), message: msg("text", { text: v.m }) };
   } catch {
-    // Plain-text message from an older or foreign writer.
+    // Plain-text message from a foreign writer.
   }
-  return { author: "", message: raw };
-}
-
-function quote(s: string): string {
-  return `“${s || "untitled"}”`;
+  return { author: "", message: msg("text", { text: raw }) };
 }
 
 export class OrgDoc {
@@ -102,7 +119,7 @@ export class OrgDoc {
   private undoManager: UndoManager;
   private listeners = new Set<Listener>();
   private cached: OrgView | null = null;
-  private pushLabel = "";
+  private pushLabel: LogMessage = msg("unnamed");
   private depth = 0;
   author: string;
 
@@ -116,7 +133,7 @@ export class OrgDoc {
     this.undoManager = new UndoManager(doc, {
       mergeInterval: 0,
       maxUndoSteps: 200,
-      onPush: () => ({ value: this.pushLabel, cursors: [] }),
+      onPush: () => ({ value: JSON.stringify(this.pushLabel), cursors: [] }),
     });
     // Loro may deliver events after a microtask; mutations also invalidate
     // synchronously (see `changed`) so reads right after an edit are fresh.
@@ -125,7 +142,7 @@ export class OrgDoc {
 
   static create(opts: { name: string; author: string }): OrgDoc {
     const org = new OrgDoc(new LoroDoc(), opts.author);
-    org.change(`Created organisation ${quote(opts.name)}`, () => {
+    org.change(msg("created", { name: opts.name }), () => {
       const meta = org.doc.getMap(META);
       meta.set("id", newId());
       meta.set("createdAt", Date.now());
@@ -142,7 +159,7 @@ export class OrgDoc {
     const doc = new LoroDoc();
     doc.import(bytes);
     const org = new OrgDoc(doc, author);
-    if (!org.doc.getMap(META).get("id")) throw new Error("Not an orgmap document");
+    if (!org.doc.getMap(META).get("id")) throw new OrgError("notOrgmap");
     return org;
   }
 
@@ -175,10 +192,9 @@ export class OrgDoc {
   // ---- structure -----------------------------------------------------------
 
   addNode(parentId: TreeID, type: NodeType, name: string, kind: RoleKind = "normal", purpose = ""): TreeID {
-    const vocab = VOCAB;
     const parent = this.node(parentId);
     let id!: TreeID;
-    this.change(`Added ${(type === "circle" ? vocab.circle : vocab.role).toLowerCase()} ${quote(name)} to ${quote(parent.name)}`, () => {
+    this.change(msg(type === "circle" ? "addCircle" : "addRole", { name, parent: parent.name }), () => {
       const tree = this.doc.getTree(STRUCTURE);
       // Roles are listed before sub-circles inside a circle.
       const siblings = parent.children;
@@ -192,12 +208,12 @@ export class OrgDoc {
     return id;
   }
 
-  /** Adds the core roles that the circle does not have yet. */
-  addCoreRoles(circleId: TreeID) {
+  /** Adds the given core roles (names in the editor's language) that the circle does not have yet. */
+  addCoreRoles(circleId: TreeID, roles: { kind: CoreKind; name: string; purpose: string }[]) {
     const circle = this.node(circleId);
-    const missing = CORE_ROLES.filter((s) => !circle.children.some((c) => c.kind === s.kind));
+    const missing = roles.filter((s) => !circle.children.some((c) => c.kind === s.kind));
     if (missing.length === 0) return;
-    this.change(`Added core roles to ${quote(circle.name)}`, () => {
+    this.change(msg("addCoreRoles", { name: circle.name }), () => {
       const tree = this.doc.getTree(STRUCTURE);
       missing.forEach((s, i) => {
         const n = tree.createNode(circleId, i);
@@ -209,28 +225,26 @@ export class OrgDoc {
   rename(id: TreeID, name: string) {
     const n = this.node(id);
     if (n.name === name) return;
-    this.change(`Renamed ${quote(n.name)} to ${quote(name)}`, () => this.data(id).set("name", name));
+    this.change(msg("rename", { from: n.name, to: name }), () => this.data(id).set("name", name));
   }
 
   setPurpose(id: TreeID, purpose: string) {
     const n = this.node(id);
     if (n.purpose === purpose) return;
-    const label = VOCAB.purpose.toLowerCase();
-    this.change(`Edited ${label} of ${quote(n.name)}`, () => this.data(id).set("purpose", purpose));
+    this.change(msg("purpose", { name: n.name }), () => this.data(id).set("purpose", purpose));
   }
 
   setKind(id: TreeID, kind: RoleKind) {
     const n = this.node(id);
     if (n.kind === kind) return;
-    this.change(`Changed role type of ${quote(n.name)}`, () => this.data(id).set("kind", kind));
+    this.change(msg("kind", { name: n.name }), () => this.data(id).set("kind", kind));
   }
 
   setType(id: TreeID, type: NodeType) {
     const n = this.node(id);
     if (n.type === type) return;
-    if (type === "role" && n.children.length > 0) throw new Error(`Only an empty ${VOCAB.circle.toLowerCase()} can become a role`);
-    const vocab = VOCAB;
-    this.change(`Turned ${quote(n.name)} into a ${(type === "circle" ? vocab.circle : vocab.role).toLowerCase()}`, () =>
+    if (type === "role" && n.children.length > 0) throw new OrgError("roleHasChildren");
+    this.change(msg(type === "circle" ? "toCircle" : "toRole", { name: n.name }), () =>
       this.data(id).set("type", type),
     );
   }
@@ -238,9 +252,9 @@ export class OrgDoc {
   move(id: TreeID, newParentId: TreeID, index?: number) {
     const n = this.node(id);
     const target = this.node(newParentId);
-    if (this.isAncestor(id, newParentId)) throw new Error(`Cannot move a ${VOCAB.circle.toLowerCase()} into itself`);
+    if (this.isAncestor(id, newParentId)) throw new OrgError("moveIntoSelf");
     const sameParent = n.parentId === newParentId;
-    this.change(sameParent ? `Reordered ${quote(n.name)}` : `Moved ${quote(n.name)} to ${quote(target.name)}`, () => {
+    this.change(sameParent ? msg("reorder", { name: n.name }) : msg("move", { name: n.name, to: target.name }), () => {
       this.doc.getTree(STRUCTURE).move(id, newParentId, index);
       if (target.type === "role") this.data(newParentId).set("type", "circle");
     });
@@ -248,22 +262,22 @@ export class OrgDoc {
 
   remove(id: TreeID) {
     const n = this.node(id);
-    if (n.parentId === null) throw new Error("The organisation itself cannot be removed");
-    const extra = n.children.length ? ` and ${countDescendants(n)} nested items` : "";
-    this.change(`Removed ${quote(n.name)}${extra}`, () => this.doc.getTree(STRUCTURE).delete(id));
+    if (n.parentId === null) throw new OrgError("removeRoot");
+    const message = n.children.length ? msg("removeNested", { name: n.name, n: countDescendants(n) }) : msg("remove", { name: n.name });
+    this.change(message, () => this.doc.getTree(STRUCTURE).delete(id));
   }
 
   // ---- list fields (accountabilities, domains, policies) -------------------
 
   addListItem(id: TreeID, field: ListField, text: string) {
     const n = this.node(id);
-    this.change(`Added ${this.fieldLabel(field)} to ${quote(n.name)}: ${quote(text)}`, () => this.list(id, field).push(text));
+    this.change(msg("itemAdd", { field: fieldMsg(field), name: n.name, text }), () => this.list(id, field).push(text));
   }
 
   updateListItem(id: TreeID, field: ListField, index: number, text: string) {
     const n = this.node(id);
     if (n[field][index] === text) return;
-    this.change(`Edited ${this.fieldLabel(field)} of ${quote(n.name)}: ${quote(text)}`, () => {
+    this.change(msg("itemEdit", { field: fieldMsg(field), name: n.name, text }), () => {
       const list = this.list(id, field);
       list.delete(index, 1);
       list.insert(index, text);
@@ -272,7 +286,7 @@ export class OrgDoc {
 
   removeListItem(id: TreeID, field: ListField, index: number) {
     const n = this.node(id);
-    this.change(`Removed ${this.fieldLabel(field)} from ${quote(n.name)}: ${quote(n[field][index])}`, () =>
+    this.change(msg("itemRemove", { field: fieldMsg(field), name: n.name, text: n[field][index] }), () =>
       this.list(id, field).delete(index, 1),
     );
   }
@@ -280,7 +294,7 @@ export class OrgDoc {
   moveListItem(id: TreeID, field: ListField, from: number, to: number) {
     const n = this.node(id);
     if (from === to) return;
-    this.change(`Reordered ${this.fieldLabel(field)} of ${quote(n.name)}`, () => {
+    this.change(msg("itemReorder", { field: fieldMsg(field), name: n.name }), () => {
       const list = this.list(id, field);
       const text = list.get(from) as string;
       list.delete(from, 1);
@@ -292,7 +306,7 @@ export class OrgDoc {
 
   addPerson(name: string): string {
     const id = newId();
-    this.change(`Added person ${quote(name)}`, () => {
+    this.change(msg("personAdd", { name }), () => {
       const p = this.doc.getMap(PEOPLE).setContainer(id, new LoroMap());
       p.set("name", name);
       p.set("createdAt", Date.now());
@@ -303,12 +317,12 @@ export class OrgDoc {
   renamePerson(id: string, name: string) {
     const p = this.person(id);
     if (p.name === name) return;
-    this.change(`Renamed person ${quote(p.name)} to ${quote(name)}`, () => this.personMap(id).set("name", name));
+    this.change(msg("personRename", { from: p.name, to: name }), () => this.personMap(id).set("name", name));
   }
 
   removePerson(id: string) {
     const p = this.person(id);
-    this.change(`Removed person ${quote(p.name)}`, () => {
+    this.change(msg("personRemove", { name: p.name }), () => {
       for (const n of this.view().nodes.values()) {
         if (n.fillers.some((f) => f.personId === id)) this.fillers(n.id).delete(id);
       }
@@ -319,14 +333,14 @@ export class OrgDoc {
   assign(roleId: TreeID, personId: string, focus = "") {
     const n = this.node(roleId);
     if (n.fillers.some((f) => f.personId === personId)) return;
-    this.change(`Assigned ${quote(this.person(personId).name)} to ${quote(n.name)}`, () =>
+    this.change(msg("assign", { person: this.person(personId).name, name: n.name }), () =>
       this.fillers(roleId).set(personId, focus),
     );
   }
 
   unassign(roleId: TreeID, personId: string) {
     const n = this.node(roleId);
-    this.change(`Unassigned ${quote(this.person(personId).name)} from ${quote(n.name)}`, () =>
+    this.change(msg("unassign", { person: this.person(personId).name, name: n.name }), () =>
       this.fillers(roleId).delete(personId),
     );
   }
@@ -335,7 +349,7 @@ export class OrgDoc {
     const n = this.node(roleId);
     const current = n.fillers.find((f) => f.personId === personId);
     if (!current || current.focus === focus) return;
-    this.change(`Set focus of ${quote(this.person(personId).name)} in ${quote(n.name)}`, () =>
+    this.change(msg("focus", { person: this.person(personId).name, name: n.name }), () =>
       this.fillers(roleId).set(personId, focus),
     );
   }
@@ -350,18 +364,18 @@ export class OrgDoc {
     return this.undoManager.canRedo();
   }
 
-  get undoLabel(): string {
-    return (this.undoManager.topUndoValue() as string | undefined) ?? "";
+  get undoLabel(): LogMessage {
+    return parseLabel(this.undoManager.topUndoValue());
   }
 
-  get redoLabel(): string {
-    return (this.undoManager.topRedoValue() as string | undefined) ?? "";
+  get redoLabel(): LogMessage {
+    return parseLabel(this.undoManager.topRedoValue());
   }
 
   undo() {
     const label = this.undoLabel;
     this.pushLabel = label;
-    this.doc.setNextCommitMessage(encodeMessage(this.author, `Undid: ${label}`));
+    this.doc.setNextCommitMessage(encodeMessage(this.author, msg("undo", { what: label })));
     this.undoManager.undo();
     this.changed();
   }
@@ -369,7 +383,7 @@ export class OrgDoc {
   redo() {
     const label = this.redoLabel;
     this.pushLabel = label;
-    this.doc.setNextCommitMessage(encodeMessage(this.author, `Redid: ${label}`));
+    this.doc.setNextCommitMessage(encodeMessage(this.author, msg("redo", { what: label })));
     this.undoManager.redo();
     this.changed();
   }
@@ -388,7 +402,7 @@ export class OrgDoc {
           lamport: c.lamport,
           time: c.timestamp * 1000,
           author,
-          message: message || "Unnamed change",
+          message,
         };
       })
       .sort((a, b) => b.lamport - a.lamport || b.peer.localeCompare(a.peer));
@@ -401,8 +415,7 @@ export class OrgDoc {
 
   /** Brings the org back to the state after `entry`, as a new change on top of history. */
   restore(entry: HistoryEntry) {
-    const when = new Date(entry.time).toLocaleString();
-    this.change(`Restored version from ${when} (${entry.message})`, () => this.doc.revertTo(entry.frontiers));
+    this.change(msg("restore", { time: entry.time, what: entry.message }), () => this.doc.revertTo(entry.frontiers));
   }
 
   // ---- files ---------------------------------------------------------------
@@ -416,7 +429,7 @@ export class OrgDoc {
   merge(bytes: Uint8Array) {
     const other = new LoroDoc();
     other.import(bytes);
-    if (other.getMap(META).get("id") !== this.id) throw new Error("That file belongs to a different organisation");
+    if (other.getMap(META).get("id") !== this.id) throw new OrgError("otherOrg");
     this.doc.import(bytes);
     this.changed();
   }
@@ -447,11 +460,11 @@ export class OrgDoc {
   // ---- internals -----------------------------------------------------------
 
   /** Groups several mutations into one change (one log entry, one undo step). */
-  batch(message: string, fn: () => void) {
+  batch(message: LogMessage, fn: () => void) {
     this.change(message, fn);
   }
 
-  private change(message: string, fn: () => void) {
+  private change(message: LogMessage, fn: () => void) {
     this.depth++;
     try {
       fn();
@@ -509,10 +522,6 @@ export class OrgDoc {
     return p;
   }
 
-  private fieldLabel(field: ListField): string {
-    return VOCAB[field].toLowerCase();
-  }
-
   private isAncestor(ancestorId: TreeID, id: TreeID | null): boolean {
     const nodes = this.view().nodes;
     while (id) {
@@ -528,6 +537,19 @@ function initNode(data: LoroMap, type: NodeType, name: string, kind: RoleKind = 
   data.set("kind", kind);
   data.set("name", name);
   data.set("purpose", purpose);
+}
+
+function fieldMsg(field: ListField): LogMessage {
+  return msg(`field.${field}`);
+}
+
+function parseLabel(value: unknown): LogMessage {
+  try {
+    if (typeof value === "string") return JSON.parse(value) as LogMessage;
+  } catch {
+    // fall through
+  }
+  return msg("unnamed");
 }
 
 function countDescendants(n: OrgNode): number {
@@ -553,7 +575,7 @@ function buildView(doc: LoroDoc): OrgView {
       parentId,
       type: (m.type as NodeType) ?? "role",
       // Documents from earlier versions may hold other core-role kinds.
-      kind: CORE_ROLES.some((r) => r.kind === m.kind) ? (m.kind as RoleKind) : "normal",
+      kind: isCoreKind(m.kind) ? m.kind : "normal",
       name: (m.name as string) ?? "",
       purpose: (m.purpose as string) ?? "",
       accountabilities: (m[LIST_KEYS.accountabilities] as string[]) ?? [],

@@ -1,9 +1,12 @@
 // Portable exports. The `.orgmap` file (see OrgDoc.exportBytes) is the
-// lossless format; JSON and CSV are readable hand-offs for other tools.
+// lossless format; JSON and CSV are readable hand-offs for other tools. JSON
+// keys are fixed; labels and CSV headers follow the interface language.
 
 import type { TreeID } from "loro-crdt";
-import { OrgDoc, type OrgNode, type OrgView } from "./org";
-import { CORE_ROLES, VOCAB, coreRoleName, type RoleKind } from "./vocabulary";
+import { OrgDoc, OrgError, type OrgNode, type OrgView } from "./org";
+import { isCoreKind } from "./vocabulary";
+import { t } from "../i18n";
+import { coreRoleName } from "../i18n/model";
 
 export const JSON_FORMAT = "orgmap/v1";
 
@@ -56,22 +59,18 @@ export function toJSON(view: OrgView): ExportedOrg {
     organisation: {
       id: view.id,
       name: view.root?.name ?? "",
-      vocabulary: { ...VOCAB },
+      vocabulary: vocabulary(),
     },
     people: view.people.map((p) => ({ name: p.name })),
     structure: view.root ? convert(view.root) : null,
   };
 }
 
-const CSV_COLUMNS = ["Path", "Name", "Type", "Core role", "Purpose", "Accountabilities", "Domains", "Policies", "People"];
-
 /** One row per circle or role. Multi-value cells are separated by line breaks. */
 export function toCSV(view: OrgView): string {
   const names = new Map(view.people.map((p) => [p.id, p.name]));
-  const v = VOCAB;
-  const header = CSV_COLUMNS.map((c) =>
-    c === "Purpose" ? v.purpose : c === "Accountabilities" ? v.accountabilities : c === "Domains" ? v.domains : c === "Policies" ? v.policies : c,
-  );
+  const v = vocabulary();
+  const header = [t("csv.path"), t("common.name"), t("csv.type"), t("csv.coreRole"), v.purpose, v.accountabilities, v.domains, v.policies, t("csv.people")];
   const rows: string[][] = [header];
   const walk = (n: OrgNode, path: string[]) => {
     rows.push([
@@ -91,6 +90,18 @@ export function toCSV(view: OrgView): string {
   return rows.map((r) => r.map(csvCell).join(",")).join("\r\n") + "\r\n";
 }
 
+function vocabulary() {
+  return {
+    circle: t("vocab.circle"),
+    role: t("vocab.role"),
+    purpose: t("vocab.purpose"),
+    accountabilities: t("vocab.accountabilities"),
+    domains: t("vocab.domains"),
+    policies: t("vocab.policies"),
+    focus: t("vocab.focus"),
+  };
+}
+
 function csvCell(s: string): string {
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
@@ -108,10 +119,10 @@ export function fileBaseName(view: OrgView): string {
 
 /** Builds a new organisation from an `orgmap/v1` JSON export or template, as one change. */
 export function fromJSON(data: ExportedOrg, author: string): OrgDoc {
-  if (data?.format !== JSON_FORMAT || !data.structure) throw new Error("Not an orgmap JSON export");
+  if (data?.format !== JSON_FORMAT || !data.structure) throw new OrgError("notOrgmapJson");
   const org = OrgDoc.create({ name: data.structure.name, author });
   const root = org.view().root!;
-  org.batch(`Imported structure of ${data.structure.name}`, () => {
+  org.batch({ key: "imported", values: { name: data.structure.name } }, () => {
     const people = new Map<string, string>();
     const personId = (name: string) => {
       if (!people.has(name)) people.set(name, org.addPerson(name));
@@ -125,7 +136,7 @@ export function fromJSON(data: ExportedOrg, author: string): OrgDoc {
       }
       r.people?.forEach((p) => org.assign(id, personId(p.name), p.focus ?? ""));
       r.roles?.forEach((child) => {
-        const kind: RoleKind = CORE_ROLES.find((c) => c.kind === child.kind)?.kind ?? "normal";
+        const kind = isCoreKind(child.kind) ? child.kind : "normal";
         const childId = org.addNode(id, child.type === "circle" ? "circle" : "role", child.name, kind);
         fill(childId, child);
       });

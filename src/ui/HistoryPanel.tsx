@@ -3,6 +3,8 @@
 
 import { useMemo } from "react";
 import type { HistoryEntry, OrgDoc, OrgView } from "../model/org";
+import { formatDate, formatTime, t, tp, useLang } from "../i18n";
+import { formatLog } from "../i18n/model";
 
 interface Props {
   org: OrgDoc;
@@ -14,22 +16,22 @@ interface Props {
 export function HistoryPanel({ org, live, preview, onPreview }: Props) {
   // `live` changes on every edit, which is when the history changes too.
   const entries = useMemo(() => org.history(), [org, live]);
+  const lang = useLang();
 
   const days = useMemo(() => {
     const groups: { day: string; items: HistoryEntry[] }[] = [];
     for (const e of entries) {
-      const day = new Date(e.time).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+      const day = formatDate(e.time, { weekday: "short", day: "numeric", month: "short", year: "numeric" });
       if (groups.at(-1)?.day !== day) groups.push({ day, items: [] });
       groups.at(-1)!.items.push(e);
     }
     return groups;
-  }, [entries]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries, lang]);
 
   return (
     <div className="history">
-      <p className="muted hint">
-        {entries.length} changes. Select one to see the organisation as it was right after it; you can restore it from there.
-      </p>
+      <p className="muted hint">{tp("history.hint", entries.length)}</p>
       {days.map((g) => (
         <section key={g.day}>
           <h3 className="label">{g.day}</h3>
@@ -40,11 +42,11 @@ export function HistoryPanel({ org, live, preview, onPreview }: Props) {
               return (
                 <li key={e.key} className={on ? "on" : ""}>
                   <button className="entry" onClick={() => onPreview(latest ? null : e)}>
-                    <span className="time">{new Date(e.time).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" })}</span>
-                    <span className="msg">{e.message}</span>
+                    <span className="time">{formatTime(e.time)}</span>
+                    <span className="msg">{formatLog(e.message)}</span>
                     <span className="who">
-                      {e.author || "unknown"}
-                      {latest ? " · current" : ""}
+                      {e.author || t("history.unknown")}
+                      {latest ? ` · ${t("history.current")}` : ""}
                     </span>
                   </button>
                 </li>

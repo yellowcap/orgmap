@@ -39,7 +39,7 @@ result over as a file.
 | **M1 Modelling** | Teams and roles; purpose, responsibilities, areas of authority, agreements; people and assignments with focus; core roles; circle-packing plan view and outline; change log with undo/redo, preview and restore; local persistence; `.orgmap`/JSON/CSV/SVG export, print; import and merge of files | **First version done** |
 | **M2 Peer-to-peer** | Live sync of the same document between browsers. Share link with the key in the URL fragment; encrypted direct connections (WebRTC via Trystero, public Nostr relays for signalling); presence (who is here, what they have selected); optional TURN settings for strict networks | **First version done** |
 | **M3 Workshop flow** | Guided steps for a coach-led session (e.g. tension harvest → activity cards → clustering → roles → consent check). **Designed with coaches first**; not started on purpose | After coach input |
-| Later | Fallback relay for networks that block WebRTC, hand-off adapters for specific tools (GlassFrog, Peerdom, Nestr), templates, translations (DE/FR), PWA install | Open |
+| Later | Fallback relay for networks that block WebRTC, hand-off adapters for specific tools (GlassFrog, Peerdom, Nestr), more templates, PWA install | Open |
 
 ## Architecture (M1)
 
@@ -52,7 +52,10 @@ result over as a file.
     `dom`, `pol`, and `fillers` (personId → focus)
   - `people` (map): personId → { name, createdAt }
 - **Mutations** live in `src/model/org.ts` (`OrgDoc`). Each one commits exactly
-  one Loro change whose message is `{"a": author, "m": message}`. The UI never
+  one Loro change whose message is `{"a": author, "k": key, "v": values}`: a
+  translation key plus values, not a sentence, so the log reads in each viewer's
+  language even when people in a live session use different ones (entries from
+  earlier versions, stored as English text, are shown as written). The UI never
   writes to Loro directly.
 - **Change log** = Loro's own change history. Undo/redo uses Loro's
   `UndoManager` (local changes only, as is correct for P2P). Preview uses
@@ -112,6 +115,17 @@ result over as a file.
   at the same moment keep only one version (the log shows both). Switch to
   `LoroText` if live co-editing of long text becomes a need.
 - Loro's WebAssembly is ~1.2 MB gzipped; acceptable for a tool used in sessions.
+
+## Languages
+
+English, German, French and Italian. `src/i18n/` holds one dictionary per
+language (no library); the other languages are type-checked against English
+and a test checks that every message has the same placeholders. The browser's
+preferred languages pick one on the first visit, English if none matches; the
+language menu overrides it per browser. Data the user creates (names, the
+example organisation, core roles once added) stays in the language it was
+written in. CSV headers and the JSON `vocabulary` follow the interface
+language; JSON keys do not.
 
 ## Visual direction
 

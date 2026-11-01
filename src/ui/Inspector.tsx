@@ -3,7 +3,9 @@
 import { useState } from "react";
 import type { TreeID } from "loro-crdt";
 import type { ListField, OrgDoc, OrgNode, OrgView } from "../model/org";
-import { CORE_ROLES, VOCAB, type RoleKind } from "../model/vocabulary";
+import type { RoleKind } from "../model/vocabulary";
+import { t, type MessageKey } from "../i18n";
+import { coreRoles, errorMessage } from "../i18n/model";
 import { ListEditor, TextField } from "./fields";
 
 interface Props {
@@ -16,7 +18,6 @@ interface Props {
 
 export function Inspector({ org, view, node, readOnly, onSelect }: Props) {
   const [error, setError] = useState("");
-  const vocab = VOCAB;
   const isCircle = node.type === "circle";
   const isRoot = node.parentId === null;
   const parent = node.parentId ? view.nodes.get(node.parentId) : null;
@@ -26,13 +27,13 @@ export function Inspector({ org, view, node, readOnly, onSelect }: Props) {
       fn();
       setError("");
     } catch (e) {
-      setError((e as Error).message);
+      setError(errorMessage(e));
     }
   };
 
   const list = (field: ListField, placeholder: string) => (
     <ListEditor
-      label={vocab[field]}
+      label={t(`vocab.${field}` as MessageKey)}
       items={node[field]}
       placeholder={placeholder}
       onAdd={(t) => org.addListItem(node.id, field, t)}
@@ -65,7 +66,7 @@ export function Inspector({ org, view, node, readOnly, onSelect }: Props) {
                 {n.name}
               </button>
             ) : (
-              <strong>{isCircle ? vocab.circle : vocab.role}</strong>
+              <strong>{t(isCircle ? "vocab.circle" : "vocab.role")}</strong>
             )}
             {i < all.length - 1 && " / "}
           </span>
@@ -73,20 +74,20 @@ export function Inspector({ org, view, node, readOnly, onSelect }: Props) {
       </div>
 
       <label className="field">
-        <span className="label">Name</span>
+        <span className="label">{t("common.name")}</span>
         <TextField className="title-input" value={node.name} onCommit={(v) => v && org.rename(node.id, v)} />
       </label>
 
       {!isRoot && (
         <div className="field-row">
           <label className="field">
-            <span className="label">Type</span>
+            <span className="label">{t("inspector.type")}</span>
             <select
               value={node.kind === "normal" ? node.type : node.kind}
               onChange={(e) => {
                 const v = e.target.value;
                 attempt(() =>
-                  org.batch(`Changed type of “${node.name}”`, () => {
+                  org.batch({ key: "changeType", values: { name: node.name } }, () => {
                   if (v === "circle" || v === "role") {
                     if (node.kind !== "normal") org.setKind(node.id, "normal");
                     org.setType(node.id, v);
@@ -98,17 +99,17 @@ export function Inspector({ org, view, node, readOnly, onSelect }: Props) {
                 );
               }}
             >
-              <option value="role">{vocab.role}</option>
-              <option value="circle">{vocab.circle}</option>
-              {CORE_ROLES.map((s) => (
+              <option value="role">{t("vocab.role")}</option>
+              <option value="circle">{t("vocab.circle")}</option>
+              {coreRoles().map((s) => (
                 <option key={s.kind} value={s.kind}>
-                  Core role: {s.name}
+                  {t("inspector.coreRole", { name: s.name })}
                 </option>
               ))}
             </select>
           </label>
           <label className="field">
-            <span className="label">Part of</span>
+            <span className="label">{t("inspector.partOf")}</span>
             <select
               value=""
               onChange={(e) => e.target.value && attempt(() => org.move(node.id, e.target.value as TreeID))}
@@ -116,7 +117,7 @@ export function Inspector({ org, view, node, readOnly, onSelect }: Props) {
               <option value="">{parent?.name ?? "—"}</option>
               {destinations.map((d) => (
                 <option key={d.id} value={d.id}>
-                  Move to {d.name}
+                  {t("inspector.moveTo", { name: d.name })}
                 </option>
               ))}
             </select>
@@ -126,33 +127,33 @@ export function Inspector({ org, view, node, readOnly, onSelect }: Props) {
       {error && <p className="error">{error}</p>}
 
       <label className="field">
-        <span className="label">{vocab.purpose}</span>
+        <span className="label">{t("vocab.purpose")}</span>
         <TextField
           multiline
           value={node.purpose}
-          placeholder={`Why does this ${(isCircle ? vocab.circle : vocab.role).toLowerCase()} exist?`}
+          placeholder={t(isCircle ? "inspector.purposeCircle" : "inspector.purposeRole")}
           onCommit={(v) => org.setPurpose(node.id, v)}
         />
       </label>
 
-      {list("accountabilities", "Add an ongoing activity, e.g. “Paying invoices”")}
-      {list("domains", "Add something it controls exclusively")}
-      {(isCircle || node.policies.length > 0) && list("policies", "Add a rule others must follow")}
+      {list("accountabilities", t("inspector.accPlaceholder"))}
+      {list("domains", t("inspector.domPlaceholder"))}
+      {(isCircle || node.policies.length > 0) && list("policies", t("inspector.polPlaceholder"))}
 
       {!isCircle && (
         <div className="fillers">
-          <span className="label">People</span>
+          <span className="label">{t("inspector.people")}</span>
           <ul>
             {node.fillers.map((f) => (
               <li key={f.personId}>
                 <span className="person">{personName.get(f.personId) ?? "?"}</span>
                 <TextField
                   value={f.focus}
-                  placeholder={vocab.focus}
-                  aria-label={`${vocab.focus} of ${personName.get(f.personId)}`}
+                  placeholder={t("vocab.focus")}
+                  aria-label={t("inspector.focusOf", { name: personName.get(f.personId) ?? "?" })}
                   onCommit={(v) => org.setFocus(node.id, f.personId, v)}
                 />
-                <button className="ghost icon" onClick={() => org.unassign(node.id, f.personId)} title="Unassign">
+                <button className="ghost icon" onClick={() => org.unassign(node.id, f.personId)} title={t("inspector.unassign")}>
                   ×
                 </button>
               </li>
@@ -161,7 +162,9 @@ export function Inspector({ org, view, node, readOnly, onSelect }: Props) {
           <AssignPerson
             options={unassigned}
             onAssign={(id) => org.assign(node.id, id)}
-            onCreate={(name) => org.batch(`Added ${name} and assigned to “${node.name}”`, () => org.assign(node.id, org.addPerson(name)))}
+            onCreate={(name) =>
+              org.batch({ key: "personAddAssign", values: { person: name, name: node.name } }, () => org.assign(node.id, org.addPerson(name)))
+            }
           />
         </div>
       )}
@@ -170,13 +173,11 @@ export function Inspector({ org, view, node, readOnly, onSelect }: Props) {
         <div className="actions">
           {isCircle && (
             <>
-              <button onClick={() => onSelect(org.addNode(node.id, "role", `New ${vocab.role.toLowerCase()}`))}>+ {vocab.role}</button>
-              <button onClick={() => onSelect(org.addNode(node.id, "circle", `New ${vocab.circle.toLowerCase()}`))}>
-                + {vocab.circle}
-              </button>
-              {CORE_ROLES.some((s) => !node.children.some((c) => c.kind === s.kind)) && (
-                <button onClick={() => org.addCoreRoles(node.id)} title={CORE_ROLES.map((s) => s.name).join(", ")}>
-                  + Core roles
+              <button onClick={() => onSelect(org.addNode(node.id, "role", t("vocab.newRole")))}>+ {t("vocab.role")}</button>
+              <button onClick={() => onSelect(org.addNode(node.id, "circle", t("vocab.newCircle")))}>+ {t("vocab.circle")}</button>
+              {coreRoles().some((s) => !node.children.some((c) => c.kind === s.kind)) && (
+                <button onClick={() => org.addCoreRoles(node.id, coreRoles())} title={coreRoles().map((s) => s.name).join(", ")}>
+                  {t("inspector.addCoreRoles")}
                 </button>
               )}
             </>
@@ -185,14 +186,14 @@ export function Inspector({ org, view, node, readOnly, onSelect }: Props) {
             <button
               className="danger"
               onClick={() => {
-                const nested = node.children.length ? ` and everything inside it` : "";
-                if (confirm(`Remove “${node.name}”${nested}? You can undo this.`)) {
+                const question = node.children.length ? "inspector.removeConfirmNested" : "inspector.removeConfirm";
+                if (confirm(t(question, { name: node.name }))) {
                   org.remove(node.id);
                   onSelect(node.parentId);
                 }
               }}
             >
-              Remove
+              {t("common.remove")}
             </button>
           )}
         </div>
@@ -224,7 +225,7 @@ function AssignPerson({
       <input
         list="people-options"
         value={draft}
-        placeholder="Assign a person…"
+        placeholder={t("inspector.assignPlaceholder")}
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
@@ -239,7 +240,7 @@ function AssignPerson({
         ))}
       </datalist>
       <button onClick={submit} disabled={!draft.trim()}>
-        Assign
+        {t("inspector.assign")}
       </button>
     </div>
   );

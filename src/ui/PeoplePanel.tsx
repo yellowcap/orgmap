@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { TreeID } from "loro-crdt";
 import type { OrgDoc, OrgNode, OrgView } from "../model/org";
-import { VOCAB } from "../model/vocabulary";
+import { t } from "../i18n";
 import { TextField } from "./fields";
 
 interface Props {
@@ -29,7 +29,7 @@ export function PeoplePanel({ org, view, readOnly, highlightPersonId, onHighligh
 
   return (
     <div className="people">
-      <p className="muted hint">Select a person to see their {VOCAB.roles.toLowerCase()} on the plan.</p>
+      <p className="muted hint">{t("people.hint")}</p>
       <ul>
         {view.people.map((p) => {
           const roles = rolesOf.get(p.id) ?? [];
@@ -40,17 +40,17 @@ export function PeoplePanel({ org, view, readOnly, highlightPersonId, onHighligh
                 <button
                   className={`ghost dot ${on ? "on" : ""}`}
                   onClick={() => onHighlight(on ? null : p.id)}
-                  title={on ? "Stop highlighting" : "Highlight on plan"}
+                  title={t(on ? "people.stopHighlight" : "people.highlight")}
                   aria-pressed={on}
                 />
-                <TextField value={p.name} disabled={readOnly} aria-label="Name" onCommit={(v) => v && org.renamePerson(p.id, v)} />
+                <TextField value={p.name} disabled={readOnly} aria-label={t("common.name")} onCommit={(v) => v && org.renamePerson(p.id, v)} />
                 <span className="count">{roles.length}</span>
                 {!readOnly && (
                   <button
                     className="ghost icon"
-                    title="Remove person"
+                    title={t("people.remove")}
                     onClick={() => {
-                      if (confirm(`Remove ${p.name} and their assignments? You can undo this.`)) {
+                      if (confirm(t("people.removeConfirm", { name: p.name }))) {
                         if (on) onHighlight(null);
                         org.removePerson(p.id);
                       }
@@ -82,7 +82,7 @@ export function PeoplePanel({ org, view, readOnly, highlightPersonId, onHighligh
         <div className="assign">
           <input
             value={draft}
-            placeholder="Add a person…"
+            placeholder={t("people.addPlaceholder")}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
@@ -92,7 +92,7 @@ export function PeoplePanel({ org, view, readOnly, highlightPersonId, onHighligh
             }}
           />
           <button onClick={add} disabled={!draft.trim()}>
-            Add
+            {t("common.add")}
           </button>
         </div>
       )}

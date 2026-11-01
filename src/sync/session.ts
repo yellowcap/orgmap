@@ -56,6 +56,9 @@ export function peerColour(peerId: string): string {
   return PEER_COLOURS[h % PEER_COLOURS.length];
 }
 
+/** Problems shown to the user; translated by the UI. */
+export type SessionError = "otherOrg" | null;
+
 export class SyncSession {
   readonly org: OrgDoc;
   private transport: Transport;
@@ -64,9 +67,9 @@ export class SyncSession {
   private rejected = new Set<string>();
   private listeners = new Set<() => void>();
   private stopLocal: () => void;
-  private snapshot: { status: SessionStatus; peers: Peer[]; error: string } = { status: "waiting", peers: [], error: "" };
+  private snapshot: { status: SessionStatus; peers: Peer[]; error: SessionError } = { status: "waiting", peers: [], error: null };
   private status: SessionStatus = "waiting";
-  private error = "";
+  private error: SessionError = null;
 
   constructor(org: OrgDoc, transport: Transport, name: string) {
     this.org = org;
@@ -90,7 +93,7 @@ export class SyncSession {
       if (msg.orgId && this.org.id && msg.orgId !== this.org.id) {
         // Same link, different organisation: never mix documents.
         this.rejected.add(from);
-        this.error = "Someone with this link has a different organisation open. Their changes are ignored.";
+        this.error = "otherOrg";
         this.emit();
         return;
       }

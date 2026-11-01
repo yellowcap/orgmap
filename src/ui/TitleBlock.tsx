@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import type { HistoryEntry, OrgDoc, OrgView } from "../model/org";
-import { VOCAB } from "../model/vocabulary";
+import { formatDate, t } from "../i18n";
 
 interface Props {
   org: OrgDoc;
@@ -18,43 +18,42 @@ export function TitleBlock({ org, view, live, focusName, preview }: Props) {
   const revision = preview ? history.length - history.findIndex((e) => e.key === preview.key) : history.length;
   const roles = [...view.nodes.values()].filter((n) => n.type === "role").length;
   const circles = [...view.nodes.values()].filter((n) => n.type === "circle").length;
-  const v = VOCAB;
 
   return (
     <div className="title-block">
       <div className="tb-cell tb-wide">
-        <span className="label">Organisation</span>
+        <span className="label">{t("tb.organisation")}</span>
         <strong>{view.root?.name}</strong>
       </div>
       <div className="tb-cell tb-wide">
-        <span className="label">Plan</span>
-        <span>{focusName ? `Detail — ${focusName}` : "Overall structure"}</span>
+        <span className="label">{t("tb.plan")}</span>
+        <span>{focusName ? t("tb.detail", { name: focusName }) : t("tb.overall")}</span>
       </div>
       <div className="tb-cell">
-        <span className="label">{v.circles}</span>
+        <span className="label">{t("vocab.circles")}</span>
         <span>{circles}</span>
       </div>
       <div className="tb-cell">
-        <span className="label">{v.roles}</span>
+        <span className="label">{t("vocab.roles")}</span>
         <span>{roles}</span>
       </div>
       <div className="tb-cell">
-        <span className="label">People</span>
+        <span className="label">{t("tb.people")}</span>
         <span>{view.people.length}</span>
       </div>
       <div className="tb-cell">
-        <span className="label">Revision</span>
+        <span className="label">{t("tb.revision")}</span>
         <span>
           {revision}
-          {preview ? " (preview)" : ""}
+          {preview ? ` ${t("tb.preview")}` : ""}
         </span>
       </div>
       <div className="tb-cell">
-        <span className="label">Date</span>
-        <span>{shown ? new Date(shown.time).toLocaleDateString() : "—"}</span>
+        <span className="label">{t("tb.date")}</span>
+        <span>{shown ? formatDate(shown.time) : "—"}</span>
       </div>
       <div className="tb-cell tb-wide">
-        <span className="label">Last edit by</span>
+        <span className="label">{t("tb.lastEdit")}</span>
         <span>{shown?.author || "—"}</span>
       </div>
     </div>

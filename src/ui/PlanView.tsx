@@ -6,7 +6,8 @@ import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
 import { hierarchy, pack, type HierarchyCircularNode } from "d3-hierarchy";
 import type { TreeID } from "loro-crdt";
 import type { OrgNode, OrgView } from "../model/org";
-import { coreRoleName } from "../model/vocabulary";
+import { t } from "../i18n";
+import { coreRoleName } from "../i18n/model";
 import type { PeerMarks } from "./Editor";
 
 const SIZE = 1000;
@@ -219,7 +220,7 @@ function RoleLabel({ d, k, size, kind, people }: { d: PackNode; k: number; size:
     <g>
       {showMeta && kind && (
         <text className="kind" x={d.x} y={top + lineH * row++} fontSize={size * 0.8} textAnchor="middle">
-          {kind === n.name ? "core role" : kind}
+          {kind === n.name ? t("plan.coreRole") : kind}
         </text>
       )}
       {lines.map((l, i) => (

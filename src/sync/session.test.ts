@@ -137,7 +137,7 @@ describe("SyncSession", () => {
     hub.flush();
     expect(a.view().root!.name).toBe("A");
     expect(a.view().people).toEqual([]);
-    expect(sa.state.error).toMatch(/different organisation/);
+    expect(sa.state.error).toBe("otherOrg");
   });
 
   it("shares selection as presence and forgets peers that leave", () => {

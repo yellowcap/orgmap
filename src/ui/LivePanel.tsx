@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { SyncSession } from "../sync/session";
 import { roomKey, shareLink, turnSettings, type TurnSettings } from "../sync/link";
 import { useSessionState } from "./hooks";
+import { t } from "../i18n";
 
 interface Props {
   orgId: string;
@@ -32,7 +33,13 @@ export function LivePanel({ orgId, author, session, isLive, onGoLive, onStopLive
     }
   };
 
-  const summary = !isLive ? "Share" : !session ? "Live · connecting" : others ? `Live · ${others + 1} here` : "Live · waiting";
+  const summary = !isLive
+    ? t("live.share")
+    : !session
+      ? t("live.connecting")
+      : others
+        ? t("live.here", { n: others + 1 })
+        : t("live.waiting");
 
   return (
     <details className="menu live">
@@ -43,48 +50,45 @@ export function LivePanel({ orgId, author, session, isLive, onGoLive, onStopLive
       <div className="menu-body live-body">
         {!isLive ? (
           <>
-            <span className="label">Edit together, live</span>
-            <p className="muted small">
-              Everyone with the link can view and edit this organisation at the same time. Changes go directly between
-              browsers; nothing is stored on a server. It works while at least one person with the organisation has it open.
-            </p>
+            <span className="label">{t("live.introTitle")}</span>
+            <p className="muted small">{t("live.intro")}</p>
             <button className="primary" onClick={onGoLive}>
-              Start live session
+              {t("live.start")}
             </button>
           </>
         ) : (
           <>
-            <span className="label">Link — anyone with it can edit</span>
+            <span className="label">{t("live.linkLabel")}</span>
             <div className="assign">
-              <input readOnly value={link} onFocus={(e) => e.target.select()} aria-label="Share link" />
-              <button onClick={copy}>{copied ? "Copied" : "Copy"}</button>
+              <input readOnly value={link} onFocus={(e) => e.target.select()} aria-label={t("live.linkAria")} />
+              <button onClick={copy}>{t(copied ? "live.copied" : "live.copy")}</button>
             </div>
 
-            <span className="label">Here now</span>
+            <span className="label">{t("live.hereNow")}</span>
             <ul className="peers">
               <li>
                 <span className="peer-dot" style={{ background: "var(--accent)" }} />
-                {author || "You"} <span className="muted">(you)</span>
+                {author || t("live.you")} <span className="muted">{t("live.youSuffix")}</span>
               </li>
               {state.peers.map((p) => (
                 <li key={p.id}>
                   <span className="peer-dot" style={{ background: p.colour }} />
-                  {p.name || "Joining…"}
-                  {!p.synced && <span className="muted"> · syncing</span>}
+                  {p.name || t("live.joining")}
+                  {!p.synced && <span className="muted"> · {t("live.syncing")}</span>}
                 </li>
               ))}
             </ul>
-            {!others && <p className="muted small">Waiting for others. Send them the link.</p>}
-            {state.error && <p className="error">{state.error}</p>}
+            {!others && <p className="muted small">{t("live.waitingHint")}</p>}
+            {state.error && <p className="error">{t(`live.${state.error}`)}</p>}
 
             <div className="row">
-              <button onClick={onStopLive}>Stop</button>
+              <button onClick={onStopLive}>{t("live.stop")}</button>
               <button
                 onClick={() => {
-                  if (confirm("Create a new link? People with the old link can no longer connect (they keep what they already have).")) onNewLink();
+                  if (confirm(t("live.newLinkConfirm"))) onNewLink();
                 }}
               >
-                New link
+                {t("live.newLink")}
               </button>
             </div>
           </>
@@ -111,14 +115,11 @@ function NetworkSettings() {
   );
   return (
     <details className="network">
-      <summary className="label">Network settings</summary>
-      <p className="muted small">
-        On networks that block direct connections, a TURN relay helps. It applies to this browser on the next
-        connection.
-      </p>
+      <summary className="label">{t("net.title")}</summary>
+      <p className="muted small">{t("net.hint")}</p>
       {field("urls", "turns:turn.example.org:443")}
-      {field("username", "Username")}
-      {field("credential", "Password", "password")}
+      {field("username", t("net.username"))}
+      {field("credential", t("net.password"), "password")}
       <div className="row">
         <button
           onClick={() => {
@@ -126,7 +127,7 @@ function NetworkSettings() {
             setSaved(true);
           }}
         >
-          {saved ? "Saved" : "Save"}
+          {t(saved ? "net.saved" : "net.save")}
         </button>
       </div>
     </details>

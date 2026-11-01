@@ -5,6 +5,7 @@ import { SyncSession } from "../sync/session";
 import { connectTrystero } from "../sync/trystero";
 import { generateKey, liveFlag, parseJoinHash, roomKey } from "../sync/link";
 import { useAuthor } from "./hooks";
+import { t, useLang } from "../i18n";
 import { persist } from "./io";
 import { Library } from "./Library";
 import { Editor } from "./Editor";
@@ -30,7 +31,9 @@ export function App() {
   const [session, setSession] = useState<SyncSession | null>(null);
   // Bumped to reconnect after going live, stopping or rotating the link.
   const [liveTick, setLiveTick] = useState(0);
-  const who = author || "Anonymous";
+  // Re-render everything when the interface language changes.
+  useLang();
+  const who = author || t("common.anonymous");
 
   useEffect(() => {
     const onHash = () => setRoute(currentRoute());

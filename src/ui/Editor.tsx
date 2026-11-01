@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { TreeID } from "loro-crdt";
 import type { HistoryEntry, OrgDoc, OrgView } from "../model/org";
-import { VOCAB, type Vocabulary } from "../model/vocabulary";
+import { formatDateTime, t } from "../i18n";
+import { errorMessage, formatLog } from "../i18n/model";
+import { LanguagePicker } from "./LanguagePicker";
 import { fileBaseName, toCSV, toJSON } from "../model/export";
 import { download, pickFile } from "./files";
 import { useOrgView } from "./hooks";
@@ -113,50 +115,57 @@ export function Editor({ org, author, onAuthorChange, onClose, session, isLive, 
     const file = await pickFile(".orgmap,.json");
     if (!file) return;
     try {
-      const { org: result, merged } = await importFile(file, author || "Anonymous");
+      const { org: result, merged } = await importFile(file, author || t("common.anonymous"));
       if (merged && result.id === org.id) {
         org.merge(result.exportBytes());
-        flash(`Merged ${file.name} into this organisation.`);
+        flash(t("editor.merged", { file: file.name }));
       } else {
-        flash(merged ? `Merged ${file.name} into another organisation in your library.` : `Opened ${file.name} as a new organisation.`);
+        flash(t(merged ? "editor.mergedOther" : "editor.openedNew", { file: file.name }));
         location.hash = `#/org/${encodeURIComponent(result.id)}`;
       }
     } catch (err) {
-      flash(`Could not open ${file.name}: ${(err as Error).message}`);
+      flash(t("lib.openError", { file: file.name, error: errorMessage(err) }));
     }
   };
 
-  const vocab = VOCAB;
   const selected = selectedId ? view.nodes.get(selectedId) ?? null : null;
   const focusName = focusId ? view.nodes.get(focusId)?.name : undefined;
 
   return (
     <div className="editor">
       <header className="topbar">
-        <button className="wordmark small link" onClick={onClose} title="Back to library">
+        <button className="wordmark small link" onClick={onClose} title={t("editor.back")}>
           orgmap
         </button>
         <span className="org-name">{live.root?.name}</span>
         <div className="topbar-actions">
-          <button disabled={readOnly || !org.canUndo} onClick={() => org.undo()} title={org.canUndo ? `Undo: ${org.undoLabel}` : "Nothing to undo"}>
-            ↶ Undo
+          <button
+            disabled={readOnly || !org.canUndo}
+            onClick={() => org.undo()}
+            title={org.canUndo ? t("editor.undoTitle", { what: formatLog(org.undoLabel) }) : t("editor.nothingToUndo")}
+          >
+            {t("editor.undo")}
           </button>
-          <button disabled={readOnly || !org.canRedo} onClick={() => org.redo()} title={org.canRedo ? `Redo: ${org.redoLabel}` : "Nothing to redo"}>
-            ↷ Redo
+          <button
+            disabled={readOnly || !org.canRedo}
+            onClick={() => org.redo()}
+            title={org.canRedo ? t("editor.redoTitle", { what: formatLog(org.redoLabel) }) : t("editor.nothingToRedo")}
+          >
+            {t("editor.redo")}
           </button>
           <span className="sep" />
           <details className="menu">
-            <summary>File</summary>
+            <summary>{t("file.menu")}</summary>
             <div className="menu-body" onClick={(e) => (e.currentTarget.parentElement as HTMLDetailsElement).removeAttribute("open")}>
-              <span className="label">Take it with you</span>
-              <button onClick={() => exportAs("orgmap")}>Save .orgmap file (full, with history)</button>
-              <span className="label">Hand over to other tools</span>
-              <button onClick={() => exportAs("json")}>Export JSON</button>
-              <button onClick={() => exportAs("csv")}>Export CSV (spreadsheet)</button>
-              <button onClick={() => exportAs("svg")}>Export plan as SVG</button>
-              <button onClick={() => window.print()}>Print / PDF</button>
-              <span className="label">Bring changes in</span>
-              <button onClick={importMerge}>Open or merge a file…</button>
+              <span className="label">{t("file.takeHome")}</span>
+              <button onClick={() => exportAs("orgmap")}>{t("file.saveOrgmap")}</button>
+              <span className="label">{t("file.handOver")}</span>
+              <button onClick={() => exportAs("json")}>{t("file.json")}</button>
+              <button onClick={() => exportAs("csv")}>{t("file.csv")}</button>
+              <button onClick={() => exportAs("svg")}>{t("file.svg")}</button>
+              <button onClick={() => window.print()}>{t("file.print")}</button>
+              <span className="label">{t("file.bringIn")}</span>
+              <button onClick={importMerge}>{t("file.openMerge")}</button>
             </div>
           </details>
           <span className="sep" />
@@ -171,29 +180,33 @@ export function Editor({ org, author, onAuthorChange, onClose, session, isLive, 
           />
           <span className="sep" />
           <label className="inline author">
-            <span className="label">You</span>
-            <TextField value={author} placeholder="Your name" onCommit={onAuthorChange} aria-label="Your name" />
+            <span className="label">{t("editor.you")}</span>
+            <TextField value={author} placeholder={t("editor.yourName")} onCommit={onAuthorChange} aria-label={t("editor.yourName")} />
           </label>
+          <LanguagePicker />
         </div>
       </header>
 
       {preview && (
         <div className="preview-bar">
           <span>
-            Viewing the version after <em>{preview.message}</em> — {new Date(preview.time).toLocaleString()}
-            {preview.author ? `, by ${preview.author}` : ""}
+            {t(preview.author ? "preview.viewingBy" : "preview.viewing", {
+              what: formatLog(preview.message),
+              time: formatDateTime(preview.time),
+              author: preview.author,
+            })}
           </span>
           <button
             className="primary"
             onClick={() => {
               org.restore(preview);
               setPreview(null);
-              flash("Version restored. The restore itself is in the log and can be undone.");
+              flash(t("preview.restored"));
             }}
           >
-            Restore this version
+            {t("preview.restore")}
           </button>
-          <button onClick={() => setPreview(null)}>Back to current</button>
+          <button onClick={() => setPreview(null)}>{t("preview.back")}</button>
         </div>
       )}
 
@@ -227,18 +240,18 @@ export function Editor({ org, author, onAuthorChange, onClose, session, isLive, 
           />
           {focusId && (
             <button className="zoom-out" onClick={() => setFocusId(null)}>
-              ⤢ Whole organisation
+              {t("editor.wholeOrg")}
             </button>
           )}
-          <Legend vocab={vocab} />
+          <Legend />
           <TitleBlock view={view} live={live} org={org} focusName={focusName} preview={preview} />
         </section>
 
         <aside className="pane side-pane">
           <nav className="tabs" role="tablist">
-            {(["details", "people", "log"] as Tab[]).map((t) => (
-              <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "on" : ""} onClick={() => setTab(t)}>
-                {t === "details" ? "Details" : t === "people" ? `People (${view.people.length})` : "Change log"}
+            {(["details", "people", "log"] as Tab[]).map((id) => (
+              <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? "on" : ""} onClick={() => setTab(id)}>
+                {id === "details" ? t("tab.details") : id === "people" ? t("tab.people", { n: view.people.length }) : t("tab.log")}
               </button>
             ))}
           </nav>
@@ -247,9 +260,7 @@ export function Editor({ org, author, onAuthorChange, onClose, session, isLive, 
               (selected ? (
                 <Inspector key={selected.id} org={org} view={view} node={selected} readOnly={readOnly} onSelect={select} />
               ) : (
-                <p className="muted hint">
-                  Select a {vocab.circle.toLowerCase()} or {vocab.role.toLowerCase()} on the plan or in the outline to edit it.
-                </p>
+                <p className="muted hint">{t("editor.selectHint")}</p>
               ))}
             {tab === "people" && (
               <PeoplePanel
@@ -275,26 +286,26 @@ export function Editor({ org, author, onAuthorChange, onClose, session, isLive, 
   );
 }
 
-function Legend({ vocab }: { vocab: Vocabulary }) {
+function Legend() {
   return (
     <div className="legend" aria-hidden="true">
-      <span className="label">Legend</span>
+      <span className="label">{t("legend.title")}</span>
       <svg width="34" height="10">
         <line x1="0" y1="5" x2="34" y2="5" stroke="#111" strokeWidth="1.4" />
       </svg>
-      <span>{vocab.circle}</span>
+      <span>{t("vocab.circle")}</span>
       <svg width="34" height="10">
         <line x1="0" y1="5" x2="34" y2="5" stroke="#333" strokeWidth="0.8" />
       </svg>
-      <span>{vocab.role}</span>
+      <span>{t("vocab.role")}</span>
       <svg width="34" height="10">
         <line x1="0" y1="5" x2="34" y2="5" stroke="#333" strokeWidth="0.8" strokeDasharray="2 2.5" />
       </svg>
-      <span>Core role</span>
+      <span>{t("legend.coreRole")}</span>
       <svg width="34" height="10">
         <line x1="0" y1="5" x2="34" y2="5" stroke="#111" strokeWidth="1.1" strokeDasharray="6 3" />
       </svg>
-      <span>Empty {vocab.circle.toLowerCase()}</span>
+      <span>{t("legend.emptyCircle")}</span>
     </div>
   );
 }
