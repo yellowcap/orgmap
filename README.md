@@ -38,7 +38,12 @@ npm run build      # static site in dist/
 ```
 
 The build is a static site with relative paths; it can be served from any
-static host.
+static host. Pushes to `main` deploy to GitHub Pages via
+`.github/workflows/pages.yml`: https://yellowcap.github.io/orgmap/
+
+## License
+
+MIT, see [LICENSE](LICENSE).
 
 ## Layout
 
