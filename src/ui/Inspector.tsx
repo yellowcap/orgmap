@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { TreeID } from "loro-crdt";
 import type { ListField, OrgDoc, OrgNode, OrgView } from "../model/org";
-import type { RoleKind } from "../model/presets";
+import { CORE_ROLES, VOCAB, type RoleKind } from "../model/vocabulary";
 import { ListEditor, TextField } from "./fields";
 
 interface Props {
@@ -16,7 +16,7 @@ interface Props {
 
 export function Inspector({ org, view, node, readOnly, onSelect }: Props) {
   const [error, setError] = useState("");
-  const vocab = view.preset.vocabulary;
+  const vocab = VOCAB;
   const isCircle = node.type === "circle";
   const isRoot = node.parentId === null;
   const parent = node.parentId ? view.nodes.get(node.parentId) : null;
@@ -100,7 +100,7 @@ export function Inspector({ org, view, node, readOnly, onSelect }: Props) {
             >
               <option value="role">{vocab.role}</option>
               <option value="circle">{vocab.circle}</option>
-              {view.preset.specialRoles.map((s) => (
+              {CORE_ROLES.map((s) => (
                 <option key={s.kind} value={s.kind}>
                   Core role: {s.name}
                 </option>
@@ -174,8 +174,8 @@ export function Inspector({ org, view, node, readOnly, onSelect }: Props) {
               <button onClick={() => onSelect(org.addNode(node.id, "circle", `New ${vocab.circle.toLowerCase()}`))}>
                 + {vocab.circle}
               </button>
-              {view.preset.specialRoles.some((s) => !node.children.some((c) => c.kind === s.kind)) && (
-                <button onClick={() => org.addCoreRoles(node.id)} title={view.preset.specialRoles.map((s) => s.name).join(", ")}>
+              {CORE_ROLES.some((s) => !node.children.some((c) => c.kind === s.kind)) && (
+                <button onClick={() => org.addCoreRoles(node.id)} title={CORE_ROLES.map((s) => s.name).join(", ")}>
                   + Core roles
                 </button>
               )}

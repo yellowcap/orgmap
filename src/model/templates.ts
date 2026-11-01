@@ -13,7 +13,7 @@ function circle(name: string, purpose: string, roles: ExportedRole[], domains: s
 export const EXAMPLE_ORG: ExportedOrg = {
   format: "orgmap/v1",
   exportedAt: "2026-11-01T00:00:00.000Z",
-  organisation: { id: "", name: "Example Cooperative", preset: "neutral", vocabulary: {} },
+  organisation: { id: "", name: "Example Cooperative", vocabulary: {} },
   people: [],
   structure: circle("Example Cooperative", "Affordable, well-designed housing for the neighbourhood", [
     role("Strategy", "A clear direction everyone can act on", ["Proposing yearly priorities", "Tracking progress against priorities"]),

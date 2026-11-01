@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { TreeID } from "loro-crdt";
 import type { OrgDoc, OrgNode, OrgView } from "../model/org";
+import { VOCAB } from "../model/vocabulary";
 import { TextField } from "./fields";
 
 interface Props {
@@ -28,7 +29,7 @@ export function PeoplePanel({ org, view, readOnly, highlightPersonId, onHighligh
 
   return (
     <div className="people">
-      <p className="muted hint">Select a person to see their {view.preset.vocabulary.roles.toLowerCase()} on the plan.</p>
+      <p className="muted hint">Select a person to see their {VOCAB.roles.toLowerCase()} on the plan.</p>
       <ul>
         {view.people.map((p) => {
           const roles = rolesOf.get(p.id) ?? [];

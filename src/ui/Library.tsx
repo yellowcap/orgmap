@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { OrgDoc } from "../model/org";
 import { fromJSON } from "../model/export";
-import { PRESETS, PRESET_IDS, type PresetId } from "../model/presets";
 import { deleteOrg, listOrgs, type OrgSummary } from "../model/storage";
 import { EXAMPLE_ORG } from "../model/templates";
 import { importFile, persist } from "./io";
@@ -17,7 +16,6 @@ interface Props {
 export function Library({ author, onAuthorChange, onOpen }: Props) {
   const [orgs, setOrgs] = useState<OrgSummary[]>([]);
   const [name, setName] = useState("");
-  const [preset, setPreset] = useState<PresetId>("holacracy");
   const [error, setError] = useState("");
 
   const refresh = () => listOrgs().then(setOrgs, (e) => setError(String(e)));
@@ -30,7 +28,7 @@ export function Library({ author, onAuthorChange, onOpen }: Props) {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    const org = OrgDoc.create({ name: name.trim(), preset, author: who });
+    const org = OrgDoc.create({ name: name.trim(), author: who });
     await persist(org);
     onOpen(org);
   };
@@ -63,7 +61,7 @@ export function Library({ author, onAuthorChange, onOpen }: Props) {
     <div className="library">
       <header className="library-head">
         <h1 className="wordmark">orgmap</h1>
-        <p className="kicker">Circles · Roles · Structure</p>
+        <p className="kicker">Teams · Roles · Structure</p>
         <p className="lede">
           Map how your team organises itself. Everything stays in this browser; take it with you as a file.
         </p>
@@ -84,16 +82,6 @@ export function Library({ author, onAuthorChange, onOpen }: Props) {
             <span className="label">Name</span>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Team Alpha" />
           </label>
-          <fieldset className="presets">
-            <legend className="label">Vocabulary</legend>
-            {PRESET_IDS.map((id) => (
-              <label key={id} className={`preset ${preset === id ? "on" : ""}`}>
-                <input type="radio" name="preset" checked={preset === id} onChange={() => setPreset(id)} />
-                <strong>{PRESETS[id].label}</strong>
-                <span>{PRESETS[id].description}</span>
-              </label>
-            ))}
-          </fieldset>
           <div className="row">
             <button type="submit" className="primary" disabled={!name.trim()}>
               Create

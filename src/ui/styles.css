@@ -237,51 +237,6 @@ select {
   margin: 0 0 20px;
 }
 
-.presets {
-  border: 0;
-  padding: 0;
-  margin: 0 0 20px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-  gap: 0;
-}
-
-.presets legend {
-  margin-bottom: 8px;
-  padding: 0;
-}
-
-.preset {
-  border: 1px solid var(--hair);
-  margin: 0 -1px -1px 0;
-  padding: 12px;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 11px;
-}
-
-.preset input {
-  position: absolute;
-  opacity: 0;
-  width: 1px;
-}
-
-.preset strong {
-  font-weight: 500;
-  font-size: 12px;
-}
-
-.preset span {
-  color: var(--grey);
-}
-
-.preset.on {
-  border-color: var(--accent);
-  position: relative;
-  box-shadow: inset 0 0 0 1px var(--accent);
-}
 
 .org-list {
   list-style: none;

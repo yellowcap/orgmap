@@ -3,7 +3,7 @@ import { OrgDoc } from "./org";
 import { fromJSON, toCSV, toJSON } from "./export";
 
 function sample() {
-  const org = OrgDoc.create({ name: "Acme", preset: "holacracy", author: "Ada" });
+  const org = OrgDoc.create({ name: "Acme", author: "Ada" });
   const root = org.view().root!.id;
   const ops = org.addNode(root, "circle", "Operations");
   const finance = org.addNode(root, "role", "Finance");
@@ -16,7 +16,6 @@ describe("OrgDoc structure", () => {
     const v = org.view();
     expect(v.root?.name).toBe("Acme");
     expect(v.root?.type).toBe("circle");
-    expect(v.preset.id).toBe("holacracy");
     expect(v.root?.children.map((c) => c.name)).toEqual(["Finance", "Operations"]);
   });
 
@@ -35,12 +34,12 @@ describe("OrgDoc structure", () => {
     expect(org.view().nodes.get(finance)?.type).toBe("circle");
   });
 
-  it("adds the preset's core roles once", () => {
+  it("adds the core roles once", () => {
     const { org, ops } = sample();
     org.addCoreRoles(ops);
     org.addCoreRoles(ops);
     const kinds = org.view().nodes.get(ops)!.children.map((c) => c.kind);
-    expect(kinds).toEqual(["lead", "rep", "facilitator", "secretary"]);
+    expect(kinds).toEqual(["lead", "rep"]);
   });
 
   it("edits list fields", () => {
@@ -99,7 +98,7 @@ describe("OrgDoc history", () => {
   });
 
   it("does not offer to undo the creation of the organisation", () => {
-    const org = OrgDoc.create({ name: "Acme", preset: "neutral", author: "Ada" });
+    const org = OrgDoc.create({ name: "Acme", author: "Ada" });
     expect(org.canUndo).toBe(false);
   });
 
@@ -156,8 +155,8 @@ describe("files", () => {
   });
 
   it("refuses to merge a different organisation", () => {
-    const a = OrgDoc.create({ name: "A", preset: "neutral", author: "x" });
-    const b = OrgDoc.create({ name: "B", preset: "neutral", author: "x" });
+    const a = OrgDoc.create({ name: "A", author: "x" });
+    const b = OrgDoc.create({ name: "B", author: "x" });
     expect(() => a.merge(b.exportBytes())).toThrow();
   });
 
@@ -183,7 +182,7 @@ describe("files", () => {
     org.addListItem(finance, "accountabilities", "Pay, on time");
     org.addListItem(finance, "accountabilities", "Budget");
     const csv = toCSV(org.view());
-    expect(csv.split("\r\n")[0]).toBe("Path,Name,Type,Special role,Purpose,Accountabilities,Domains,Policies,People");
+    expect(csv.split("\r\n")[0]).toBe("Path,Name,Type,Core role,Purpose,Responsibilities,Areas of authority,Agreements,People");
     expect(csv).toContain('Acme,Finance,Role,,,"Pay, on time\nBudget",,,');
   });
 });

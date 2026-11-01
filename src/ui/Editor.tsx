@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { TreeID } from "loro-crdt";
 import type { HistoryEntry, OrgDoc, OrgView } from "../model/org";
-import { PRESETS, PRESET_IDS, type PresetId } from "../model/presets";
+import { VOCAB, type Vocabulary } from "../model/vocabulary";
 import { fileBaseName, toCSV, toJSON } from "../model/export";
 import { download, pickFile } from "./files";
 import { useOrgView } from "./hooks";
@@ -126,7 +126,7 @@ export function Editor({ org, author, onAuthorChange, onClose, session, isLive, 
     }
   };
 
-  const vocab = view.preset.vocabulary;
+  const vocab = VOCAB;
   const selected = selectedId ? view.nodes.get(selectedId) ?? null : null;
   const focusName = focusId ? view.nodes.get(focusId)?.name : undefined;
 
@@ -144,21 +144,6 @@ export function Editor({ org, author, onAuthorChange, onClose, session, isLive, 
           <button disabled={readOnly || !org.canRedo} onClick={() => org.redo()} title={org.canRedo ? `Redo: ${org.redoLabel}` : "Nothing to redo"}>
             ↷ Redo
           </button>
-          <span className="sep" />
-          <label className="inline">
-            <span className="label">Vocabulary</span>
-            <select
-              value={live.preset.id}
-              disabled={readOnly}
-              onChange={(e) => org.setPreset(e.target.value as PresetId)}
-            >
-              {PRESET_IDS.map((id) => (
-                <option key={id} value={id}>
-                  {PRESETS[id].label}
-                </option>
-              ))}
-            </select>
-          </label>
           <span className="sep" />
           <details className="menu">
             <summary>File</summary>
@@ -290,7 +275,7 @@ export function Editor({ org, author, onAuthorChange, onClose, session, isLive, 
   );
 }
 
-function Legend({ vocab }: { vocab: OrgView["preset"]["vocabulary"] }) {
+function Legend({ vocab }: { vocab: Vocabulary }) {
   return (
     <div className="legend" aria-hidden="true">
       <span className="label">Legend</span>

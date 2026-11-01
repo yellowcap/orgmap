@@ -1,17 +1,18 @@
 # orgmap
 
-Map how a team organises itself — circles, roles, accountabilities, domains and
-who fills which role — in a browser, with nothing leaving the device unless you
+Map how a team organises itself — teams, roles, responsibilities, areas of
+authority and who fills which role — in a browser, with nothing leaving the device unless you
 export it or start a live session.
 
-Built for teams exploring self-organisation (Holacracy-style, Sociocracy,
-Sociocracy 3.0 or plain language), typically with a coach. See [PLAN.md](PLAN.md)
+Built for teams exploring self-organisation, typically with a coach. It uses
+plain language throughout. See [PLAN.md](PLAN.md)
 for goals, roadmap and architecture.
 
 ## Features
 
-- Circles and roles with purpose, accountabilities, domains and policies
-- Vocabulary presets with their core roles (e.g. Circle Lead, Leader/Delegate)
+- Teams and roles with purpose, responsibilities, areas of authority and
+  agreements
+- Core roles per team: Lead and Representative
 - People and role assignments with a focus
 - Plan view: zoomable circle packing styled as an architectural drawing, with
   legend and title block; outline with drag-and-drop
@@ -58,16 +59,12 @@ Bundled third-party work:
   (ISC), [React](https://github.com/facebook/react) (MIT),
   [Trystero](https://github.com/dmotz/trystero) (MIT).
 
-"Holacracy" is a registered trademark of HolacracyOne, LLC. orgmap is not
-affiliated with or endorsed by HolacracyOne; the "Holacracy-style" preset only
-describes compatible vocabulary.
-
 ## Layout
 
 ```
 src/model/   data layer, no UI
   org.ts       OrgDoc: the Loro document, all mutations, history
-  presets.ts   vocabularies and core roles per paradigm
+  vocabulary.ts labels and core roles
   export.ts    JSON/CSV export, JSON import
   storage.ts   IndexedDB persistence
   templates.ts example organisation

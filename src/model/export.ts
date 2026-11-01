@@ -3,16 +3,16 @@
 
 import type { TreeID } from "loro-crdt";
 import { OrgDoc, type OrgNode, type OrgView } from "./org";
-import { PRESET_IDS, type PresetId, type RoleKind } from "./presets";
+import { CORE_ROLES, VOCAB, coreRoleName, type RoleKind } from "./vocabulary";
 
 export const JSON_FORMAT = "orgmap/v1";
 
 export interface ExportedRole {
   name: string;
   type: "circle" | "role";
-  /** Special role kind, e.g. "lead" or "rep"; omitted for normal roles. */
+  /** Core role kind, "lead" or "rep"; omitted for normal roles. */
   kind?: string;
-  /** Preset-specific name of the special role, e.g. "Circle Lead". */
+  /** Display name of the core role, e.g. "Lead". */
   kindLabel?: string;
   purpose: string;
   accountabilities: string[];
@@ -28,7 +28,6 @@ export interface ExportedOrg {
   organisation: {
     id: string;
     name: string;
-    preset: string;
     vocabulary: Record<string, string>;
   };
   people: { name: string }[];
@@ -38,11 +37,10 @@ export interface ExportedOrg {
 export function toJSON(view: OrgView): ExportedOrg {
   const names = new Map(view.people.map((p) => [p.id, p.name]));
   const convert = (n: OrgNode): ExportedRole => {
-    const special = view.preset.specialRoles.find((s) => s.kind === n.kind);
     const out: ExportedRole = {
       name: n.name,
       type: n.type,
-      ...(n.kind !== "normal" ? { kind: n.kind, kindLabel: special?.name ?? n.kind } : {}),
+      ...(n.kind !== "normal" ? { kind: n.kind, kindLabel: coreRoleName(n.kind) } : {}),
       purpose: n.purpose,
       accountabilities: n.accountabilities,
       domains: n.domains,
@@ -58,31 +56,29 @@ export function toJSON(view: OrgView): ExportedOrg {
     organisation: {
       id: view.id,
       name: view.root?.name ?? "",
-      preset: view.preset.id,
-      vocabulary: { ...view.preset.vocabulary },
+      vocabulary: { ...VOCAB },
     },
     people: view.people.map((p) => ({ name: p.name })),
     structure: view.root ? convert(view.root) : null,
   };
 }
 
-const CSV_COLUMNS = ["Path", "Name", "Type", "Special role", "Purpose", "Accountabilities", "Domains", "Policies", "People"];
+const CSV_COLUMNS = ["Path", "Name", "Type", "Core role", "Purpose", "Accountabilities", "Domains", "Policies", "People"];
 
 /** One row per circle or role. Multi-value cells are separated by line breaks. */
 export function toCSV(view: OrgView): string {
   const names = new Map(view.people.map((p) => [p.id, p.name]));
-  const v = view.preset.vocabulary;
+  const v = VOCAB;
   const header = CSV_COLUMNS.map((c) =>
     c === "Purpose" ? v.purpose : c === "Accountabilities" ? v.accountabilities : c === "Domains" ? v.domains : c === "Policies" ? v.policies : c,
   );
   const rows: string[][] = [header];
   const walk = (n: OrgNode, path: string[]) => {
-    const special = view.preset.specialRoles.find((s) => s.kind === n.kind);
     rows.push([
       path.join(" / "),
       n.name,
       n.type === "circle" ? v.circle : v.role,
-      n.kind === "normal" ? "" : (special?.name ?? n.kind),
+      coreRoleName(n.kind) ?? "",
       n.purpose,
       n.accountabilities.join("\n"),
       n.domains.join("\n"),
@@ -113,8 +109,7 @@ export function fileBaseName(view: OrgView): string {
 /** Builds a new organisation from an `orgmap/v1` JSON export or template, as one change. */
 export function fromJSON(data: ExportedOrg, author: string): OrgDoc {
   if (data?.format !== JSON_FORMAT || !data.structure) throw new Error("Not an orgmap JSON export");
-  const preset = (PRESET_IDS as string[]).includes(data.organisation.preset) ? (data.organisation.preset as PresetId) : "neutral";
-  const org = OrgDoc.create({ name: data.structure.name, preset, author });
+  const org = OrgDoc.create({ name: data.structure.name, author });
   const root = org.view().root!;
   org.batch(`Imported structure of ${data.structure.name}`, () => {
     const people = new Map<string, string>();
@@ -130,7 +125,7 @@ export function fromJSON(data: ExportedOrg, author: string): OrgDoc {
       }
       r.people?.forEach((p) => org.assign(id, personId(p.name), p.focus ?? ""));
       r.roles?.forEach((child) => {
-        const kind = (child.kind ?? "normal") as RoleKind;
+        const kind: RoleKind = CORE_ROLES.find((c) => c.kind === child.kind)?.kind ?? "normal";
         const childId = org.addNode(id, child.type === "circle" ? "circle" : "role", child.name, kind);
         fill(childId, child);
       });

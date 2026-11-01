@@ -71,7 +71,7 @@ function names(org: OrgDoc): string[] {
 describe("SyncSession", () => {
   it("fills a blank document from a peer and then syncs both ways", () => {
     const hub = new Hub();
-    const coach = OrgDoc.create({ name: "Acme", preset: "neutral", author: "Coach" });
+    const coach = OrgDoc.create({ name: "Acme", author: "Coach" });
     coach.addNode(coach.view().root!.id, "role", "Finance");
     const guest = OrgDoc.blank("Guest");
 
@@ -95,7 +95,7 @@ describe("SyncSession", () => {
 
   it("merges two copies that diverged offline", () => {
     const hub = new Hub();
-    const a = OrgDoc.create({ name: "Acme", preset: "neutral", author: "A" });
+    const a = OrgDoc.create({ name: "Acme", author: "A" });
     const b = OrgDoc.fromBytes(a.exportBytes(), "B");
     a.addNode(a.view().root!.id, "role", "Made by A");
     b.addNode(b.view().root!.id, "role", "Made by B");
@@ -109,7 +109,7 @@ describe("SyncSession", () => {
   it("converges with three peers and out-of-order delivery", () => {
     const hub = new Hub();
     hub.shuffle = true;
-    const a = OrgDoc.create({ name: "Acme", preset: "neutral", author: "A" });
+    const a = OrgDoc.create({ name: "Acme", author: "A" });
     const docs = [a, OrgDoc.blank("B"), OrgDoc.blank("C")];
     docs.forEach((d, i) => new SyncSession(d, hub.join(String(i)), d.author));
     hub.flush();
@@ -128,8 +128,8 @@ describe("SyncSession", () => {
 
   it("ignores a peer that has a different organisation", () => {
     const hub = new Hub();
-    const a = OrgDoc.create({ name: "A", preset: "neutral", author: "A" });
-    const b = OrgDoc.create({ name: "B", preset: "neutral", author: "B" });
+    const a = OrgDoc.create({ name: "A", author: "A" });
+    const b = OrgDoc.create({ name: "B", author: "B" });
     const sa = new SyncSession(a, hub.join("a"), "A");
     new SyncSession(b, hub.join("b"), "B");
     hub.flush();
@@ -142,7 +142,7 @@ describe("SyncSession", () => {
 
   it("shares selection as presence and forgets peers that leave", () => {
     const hub = new Hub();
-    const a = OrgDoc.create({ name: "Acme", preset: "neutral", author: "A" });
+    const a = OrgDoc.create({ name: "Acme", author: "A" });
     const sa = new SyncSession(a, hub.join("a"), "A");
     const sb = new SyncSession(OrgDoc.blank("B"), hub.join("b"), "B");
     hub.flush();

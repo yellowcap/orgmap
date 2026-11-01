@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import type { HistoryEntry, OrgDoc, OrgView } from "../model/org";
+import { VOCAB } from "../model/vocabulary";
 
 interface Props {
   org: OrgDoc;
@@ -17,7 +18,7 @@ export function TitleBlock({ org, view, live, focusName, preview }: Props) {
   const revision = preview ? history.length - history.findIndex((e) => e.key === preview.key) : history.length;
   const roles = [...view.nodes.values()].filter((n) => n.type === "role").length;
   const circles = [...view.nodes.values()].filter((n) => n.type === "circle").length;
-  const v = view.preset.vocabulary;
+  const v = VOCAB;
 
   return (
     <div className="title-block">
@@ -40,10 +41,6 @@ export function TitleBlock({ org, view, live, focusName, preview }: Props) {
       <div className="tb-cell">
         <span className="label">People</span>
         <span>{view.people.length}</span>
-      </div>
-      <div className="tb-cell">
-        <span className="label">Vocabulary</span>
-        <span>{view.preset.label}</span>
       </div>
       <div className="tb-cell">
         <span className="label">Revision</span>

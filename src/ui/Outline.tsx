@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { TreeID } from "loro-crdt";
 import type { OrgDoc, OrgNode, OrgView } from "../model/org";
 import type { PeerMarks } from "./Editor";
+import { VOCAB } from "../model/vocabulary";
 
 interface Props {
   org: OrgDoc;
@@ -19,7 +20,7 @@ export function Outline({ org, view, readOnly, selectedId, peerMarks, onSelect }
   const [dragId, setDragId] = useState<TreeID | null>(null);
   const [dropId, setDropId] = useState<TreeID | null>(null);
   const [error, setError] = useState("");
-  const vocab = view.preset.vocabulary;
+  const vocab = VOCAB;
 
   if (!view.root) return null;
 

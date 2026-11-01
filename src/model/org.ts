@@ -6,7 +6,7 @@
 // attributes edits once documents sync peer-to-peer.
 
 import { LoroDoc, LoroList, LoroMap, UndoManager, VersionVector, type Change, type Frontiers, type TreeID } from "loro-crdt";
-import { PRESETS, type Preset, type PresetId, type RoleKind } from "./presets";
+import { CORE_ROLES, VOCAB, type RoleKind } from "./vocabulary";
 
 export const SCHEMA_VERSION = 1;
 
@@ -39,7 +39,6 @@ export interface Person {
 
 export interface OrgView {
   id: string;
-  preset: Preset;
   createdAt: number;
   root: OrgNode | null;
   nodes: Map<TreeID, OrgNode>;
@@ -124,12 +123,11 @@ export class OrgDoc {
     doc.subscribe(() => this.changed());
   }
 
-  static create(opts: { name: string; preset: PresetId; author: string }): OrgDoc {
+  static create(opts: { name: string; author: string }): OrgDoc {
     const org = new OrgDoc(new LoroDoc(), opts.author);
     org.change(`Created organisation ${quote(opts.name)}`, () => {
       const meta = org.doc.getMap(META);
       meta.set("id", newId());
-      meta.set("preset", opts.preset);
       meta.set("createdAt", Date.now());
       meta.set("schemaVersion", SCHEMA_VERSION);
       const root = org.doc.getTree(STRUCTURE).createNode();
@@ -174,18 +172,10 @@ export class OrgDoc {
     return () => this.listeners.delete(listener);
   }
 
-  // ---- organisation --------------------------------------------------------
-
-  setPreset(preset: PresetId) {
-    this.change(`Switched vocabulary to ${PRESETS[preset].label}`, () => {
-      this.doc.getMap(META).set("preset", preset);
-    });
-  }
-
   // ---- structure -----------------------------------------------------------
 
   addNode(parentId: TreeID, type: NodeType, name: string, kind: RoleKind = "normal", purpose = ""): TreeID {
-    const vocab = this.view().preset.vocabulary;
+    const vocab = VOCAB;
     const parent = this.node(parentId);
     let id!: TreeID;
     this.change(`Added ${(type === "circle" ? vocab.circle : vocab.role).toLowerCase()} ${quote(name)} to ${quote(parent.name)}`, () => {
@@ -202,11 +192,10 @@ export class OrgDoc {
     return id;
   }
 
-  /** Adds the preset's special roles that the circle does not have yet. */
+  /** Adds the core roles that the circle does not have yet. */
   addCoreRoles(circleId: TreeID) {
-    const { preset } = this.view();
     const circle = this.node(circleId);
-    const missing = preset.specialRoles.filter((s) => !circle.children.some((c) => c.kind === s.kind));
+    const missing = CORE_ROLES.filter((s) => !circle.children.some((c) => c.kind === s.kind));
     if (missing.length === 0) return;
     this.change(`Added core roles to ${quote(circle.name)}`, () => {
       const tree = this.doc.getTree(STRUCTURE);
@@ -226,7 +215,7 @@ export class OrgDoc {
   setPurpose(id: TreeID, purpose: string) {
     const n = this.node(id);
     if (n.purpose === purpose) return;
-    const label = this.view().preset.vocabulary.purpose.toLowerCase();
+    const label = VOCAB.purpose.toLowerCase();
     this.change(`Edited ${label} of ${quote(n.name)}`, () => this.data(id).set("purpose", purpose));
   }
 
@@ -239,8 +228,8 @@ export class OrgDoc {
   setType(id: TreeID, type: NodeType) {
     const n = this.node(id);
     if (n.type === type) return;
-    if (type === "role" && n.children.length > 0) throw new Error("Only an empty circle can become a role");
-    const vocab = this.view().preset.vocabulary;
+    if (type === "role" && n.children.length > 0) throw new Error(`Only an empty ${VOCAB.circle.toLowerCase()} can become a role`);
+    const vocab = VOCAB;
     this.change(`Turned ${quote(n.name)} into a ${(type === "circle" ? vocab.circle : vocab.role).toLowerCase()}`, () =>
       this.data(id).set("type", type),
     );
@@ -249,7 +238,7 @@ export class OrgDoc {
   move(id: TreeID, newParentId: TreeID, index?: number) {
     const n = this.node(id);
     const target = this.node(newParentId);
-    if (this.isAncestor(id, newParentId)) throw new Error("Cannot move a circle into itself");
+    if (this.isAncestor(id, newParentId)) throw new Error(`Cannot move a ${VOCAB.circle.toLowerCase()} into itself`);
     const sameParent = n.parentId === newParentId;
     this.change(sameParent ? `Reordered ${quote(n.name)}` : `Moved ${quote(n.name)} to ${quote(target.name)}`, () => {
       this.doc.getTree(STRUCTURE).move(id, newParentId, index);
@@ -521,8 +510,7 @@ export class OrgDoc {
   }
 
   private fieldLabel(field: ListField): string {
-    const label = this.view().preset.vocabulary[field].toLowerCase();
-    return label;
+    return VOCAB[field].toLowerCase();
   }
 
   private isAncestor(ancestorId: TreeID, id: TreeID | null): boolean {
@@ -555,7 +543,6 @@ interface TreeJSON {
 
 function buildView(doc: LoroDoc): OrgView {
   const meta = doc.getMap(META);
-  const presetId = (meta.get("preset") as PresetId) ?? "neutral";
   const nodes = new Map<TreeID, OrgNode>();
 
   const toNode = (t: TreeJSON, parentId: TreeID | null): OrgNode => {
@@ -565,7 +552,8 @@ function buildView(doc: LoroDoc): OrgView {
       id: t.id,
       parentId,
       type: (m.type as NodeType) ?? "role",
-      kind: (m.kind as RoleKind) ?? "normal",
+      // Documents from earlier versions may hold other core-role kinds.
+      kind: CORE_ROLES.some((r) => r.kind === m.kind) ? (m.kind as RoleKind) : "normal",
       name: (m.name as string) ?? "",
       purpose: (m.purpose as string) ?? "",
       accountabilities: (m[LIST_KEYS.accountabilities] as string[]) ?? [],
@@ -589,7 +577,6 @@ function buildView(doc: LoroDoc): OrgView {
 
   return {
     id: meta.get("id") as string,
-    preset: PRESETS[presetId] ?? PRESETS.neutral,
     createdAt: (meta.get("createdAt") as number) ?? 0,
     root,
     nodes,

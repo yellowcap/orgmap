@@ -6,6 +6,7 @@ import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
 import { hierarchy, pack, type HierarchyCircularNode } from "d3-hierarchy";
 import type { TreeID } from "loro-crdt";
 import type { OrgNode, OrgView } from "../model/org";
+import { coreRoleName } from "../model/vocabulary";
 import type { PeerMarks } from "./Editor";
 
 const SIZE = 1000;
@@ -63,7 +64,6 @@ export const PlanView = forwardRef<SVGSVGElement, Props>(function PlanView(
   }, [layout]);
 
   const people = useMemo(() => new Map(view.people.map((p) => [p.id, p.name])), [view.people]);
-  const specialName = (kind: string) => view.preset.specialRoles.find((s) => s.kind === kind)?.name;
 
   // Zoom target: the focused circle (or the root).
   const target = (focusId && byId.get(focusId)) || layout;
@@ -190,7 +190,7 @@ export const PlanView = forwardRef<SVGSVGElement, Props>(function PlanView(
               d={d}
               k={k}
               size={rlabel}
-              kind={n.kind !== "normal" ? specialName(n.kind) : undefined}
+              kind={coreRoleName(n.kind)}
               people={n.fillers.map((f) => people.get(f.personId) ?? "?")}
             />
           );

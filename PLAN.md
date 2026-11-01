@@ -1,9 +1,9 @@
 # orgmap — plan
 
-A local-first tool for teams to model how they organise themselves: circles,
-roles, accountabilities, domains and who fills which role. It is meant for the
-first weeks of a transition to self-organisation (Holacracy, Sociocracy,
-Sociocracy 3.0 or a home-grown variant), typically guided by a coach.
+A local-first tool for teams to model how they organise themselves: teams,
+roles, responsibilities, areas of authority and who fills which role. It is
+meant for the first weeks of a transition to self-organisation, typically
+guided by a coach.
 
 ## Why this exists
 
@@ -26,8 +26,9 @@ result over as a file.
    change log with author and time; it can be undone, previewed and restored.
 3. **Don't close the peer-to-peer door.** The data model is a CRDT from day
    one, so sync is a transport added later, not a rewrite.
-4. **Paradigm-aware, not paradigm-bound.** Presets change vocabulary and core
-   roles; the model underneath is the same.
+4. **Plain language.** One neutral vocabulary (team, role, purpose,
+   responsibilities, areas of authority, agreements) and two core roles (Lead,
+   Representative), so no method's terms need to be learned first.
 5. **Hand-off, not lock-in.** Exports are documented and readable, so a team can
    take its map to a commercial tool of its choice.
 
@@ -35,17 +36,17 @@ result over as a file.
 
 | Milestone | Scope | Status |
 |---|---|---|
-| **M1 Modelling** | Circles and roles; purpose, accountabilities, domains, policies; people and assignments with focus; presets; circle-packing plan view and outline; change log with undo/redo, preview and restore; local persistence; `.orgmap`/JSON/CSV/SVG export, print; import and merge of files | **First version done** |
+| **M1 Modelling** | Teams and roles; purpose, responsibilities, areas of authority, agreements; people and assignments with focus; core roles; circle-packing plan view and outline; change log with undo/redo, preview and restore; local persistence; `.orgmap`/JSON/CSV/SVG export, print; import and merge of files | **First version done** |
 | **M2 Peer-to-peer** | Live sync of the same document between browsers. Share link with the key in the URL fragment; encrypted direct connections (WebRTC via Trystero, public Nostr relays for signalling); presence (who is here, what they have selected); optional TURN settings for strict networks | **First version done** |
 | **M3 Workshop flow** | Guided steps for a coach-led session (e.g. tension harvest → activity cards → clustering → roles → consent check). **Designed with coaches first**; not started on purpose | After coach input |
-| Later | Fallback relay for networks that block WebRTC, hand-off adapters for specific tools (GlassFrog, Peerdom, Nestr), templates per paradigm, translations (DE/FR), PWA install | Open |
+| Later | Fallback relay for networks that block WebRTC, hand-off adapters for specific tools (GlassFrog, Peerdom, Nestr), templates, translations (DE/FR), PWA install | Open |
 
 ## Architecture (M1)
 
 - **Stack:** Vite, React, TypeScript, [Loro](https://loro.dev) (`loro-crdt`) for
   the document, `d3-hierarchy` for the circle packing. Static site, no backend.
 - **One Loro document per organisation**, containing:
-  - `meta` (map): id, preset, createdAt, schemaVersion
+  - `meta` (map): id, createdAt, schemaVersion
   - `structure` (movable tree): one node per circle or role; node data holds
     `type`, `kind` (normal or a core role), `name`, `purpose`, lists `acc`,
     `dom`, `pol`, and `fillers` (personId → focus)
@@ -107,14 +108,10 @@ result over as a file.
   several, so single failures are harmless.
 - Anyone with the link can edit, and author names are self-declared. Fine for a
   workshop room; not an access-control system.
-
 - Text fields are last-writer-wins strings. Two people editing the same purpose
   at the same moment keep only one version (the log shows both). Switch to
   `LoroText` if live co-editing of long text becomes a need.
 - Loro's WebAssembly is ~1.2 MB gzipped; acceptable for a tool used in sessions.
-- Holacracy-style is a vocabulary preset; "Holacracy" is a trademark of
-  HolacracyOne, so the product does not use it as a name. Constitution and S3
-  texts are CC BY-SA 4.0 and are not bundled.
 
 ## Visual direction
 
@@ -136,5 +133,5 @@ Quiet, editorial, in the manner of architectural plan drawings:
 - Is a fallback relay needed for corporate networks (TURN settings exist; a
   hosted relay, e.g. a Cloudflare Durable Object, would also store nothing but
   forward updates), and should it be hosted or self-hostable only?
-- Workshop flow (M3): which steps, in which order, per paradigm — to be worked
+- Workshop flow (M3): which steps, in which order — to be worked
   out with coaches.
