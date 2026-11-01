@@ -1,0 +1,33 @@
+{
+  "name": "orgmap",
+  "version": "0.1.0",
+  "description": "Local-first modelling of circles and roles for self-organising teams",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@fontsource/josefin-sans": "^5.3.0",
+    "@fontsource/roboto-mono": "^5.3.0",
+    "d3-hierarchy": "^3.1.2",
+    "loro-crdt": "^1.17.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/d3-hierarchy": "^3.1.7",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vite-plugin-wasm": "^3.6.0",
+    "vitest": "^5.0.5"
+  },
+  "private": true,
+  "type": "module"
+}
